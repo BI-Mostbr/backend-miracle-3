@@ -1,0 +1,71 @@
+{
+  "simulacao": {
+    "cpf": "98906637080",
+    "nome": "Teste Simulador",
+    "ofertas": [
+      {
+        "instituicao": "Itaú",
+        "credito_solicitado": "R$ 100.000,00",
+        "prazo": "100 meses",
+        "primeira_parcela": "R$2.096,33",
+        "ultima_parcela": "R$1.010,74",
+        "renda_minima": "R$6.288,99",
+        "taxa_juros": "13.69% a.a.",
+        "cet": "14.09%",
+        "repasse": {
+          "financiavel": "R$ 100.000,00",
+          "amortizacao": "SAC",
+          "entrada": "R$100.000",
+          "ltv": "50%",
+          "todas_parcelas": "Baixar simulação"
+        },
+        "poder_de_compra": {
+          "descricao": "Descubra o potencial máximo de financiamento do seu cliente"
+        },
+        "tags": ["Novidade"]
+      },
+      {
+        "instituicao": "Santander",
+        "credito_solicitado": "R$ 100.000,00",
+        "prazo": "96 meses",
+        "primeira_parcela": "R$2.175,84",
+        "ultima_parcela": "R$1.077,62",
+        "renda_minima": "R$6.527,52",
+        "taxa_juros": "13.79% a.a.",
+        "cet": "15.6%",
+        "repasse": {
+          "financiavel": "R$ 100.000,00",
+          "amortizacao": "SAC",
+          "entrada": "R$100.000",
+          "ltv": "50%",
+          "todas_parcelas": "Baixar simulação"
+        },
+        "poder_de_compra": {
+          "descricao": "Descubra o potencial máximo de financiamento do seu cliente"
+        },
+        "tags": ["Novidade"]
+      },
+      {
+        "instituicao": "Banco Safra",
+        "credito_solicitado": "R$ 100.000,00",
+        "prazo": "100 meses",
+        "primeira_parcela": "R$1.867,09",
+        "ultima_parcela": "R$1.058,76",
+        "renda_minima": "R$4.667,72",
+        "taxa_juros": "9,5% + IPCA",
+        "cet": "14.50%",
+        "repasse": {
+          "financiavel": "R$ 100.000,00",
+          "amortizacao": "SAC",
+          "entrada": "R$100.000",
+          "ltv": "50%",
+          "todas_parcelas": "Baixar simulação"
+        },
+        "poder_de_compra": {
+          "descricao": "Descubra o potencial máximo de financiamento do seu cliente"
+        },
+        "tags": ["Novidade"]
+      }
+    ]
+  }
+}
