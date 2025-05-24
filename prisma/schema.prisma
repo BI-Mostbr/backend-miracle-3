@@ -1,0 +1,1940 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "public", "storage"]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_log_entries {
+  instance_id String?   @db.Uuid
+  id          String    @id @db.Uuid
+  payload     Json?     @db.Json
+  created_at  DateTime? @db.Timestamptz(6)
+  ip_address  String    @default("") @db.VarChar(64)
+
+  @@index([instance_id], map: "audit_logs_instance_id_idx")
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model flow_state {
+  id                     String                @id @db.Uuid
+  user_id                String?               @db.Uuid
+  auth_code              String
+  code_challenge_method  code_challenge_method
+  code_challenge         String
+  provider_type          String
+  provider_access_token  String?
+  provider_refresh_token String?
+  created_at             DateTime?             @db.Timestamptz(6)
+  updated_at             DateTime?             @db.Timestamptz(6)
+  authentication_method  String
+  auth_code_issued_at    DateTime?             @db.Timestamptz(6)
+  saml_relay_states      saml_relay_states[]
+
+  @@index([created_at(sort: Desc)])
+  @@index([auth_code], map: "idx_auth_code")
+  @@index([user_id, authentication_method], map: "idx_user_id_auth_method")
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model identities {
+  provider_id     String
+  user_id         String    @db.Uuid
+  identity_data   Json
+  provider        String
+  last_sign_in_at DateTime? @db.Timestamptz(6)
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+  email           String?   @default(dbgenerated("lower((identity_data ->> 'email'::text))"))
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  users           users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([provider_id, provider], map: "identities_provider_id_provider_unique")
+  @@index([email])
+  @@index([user_id])
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model instances {
+  id              String    @id @db.Uuid
+  uuid            String?   @db.Uuid
+  raw_base_config String?
+  created_at      DateTime? @db.Timestamptz(6)
+  updated_at      DateTime? @db.Timestamptz(6)
+
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model mfa_amr_claims {
+  session_id            String   @db.Uuid
+  created_at            DateTime @db.Timestamptz(6)
+  updated_at            DateTime @db.Timestamptz(6)
+  authentication_method String
+  id                    String   @id(map: "amr_id_pk") @db.Uuid
+  sessions              sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([session_id, authentication_method], map: "mfa_amr_claims_session_id_authentication_method_pkey")
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model mfa_challenges {
+  id                     String      @id @db.Uuid
+  factor_id              String      @db.Uuid
+  created_at             DateTime    @db.Timestamptz(6)
+  verified_at            DateTime?   @db.Timestamptz(6)
+  ip_address             String      @db.Inet
+  otp_code               String?
+  web_authn_session_data Json?
+  mfa_factors            mfa_factors @relation(fields: [factor_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "mfa_challenges_auth_factor_id_fkey")
+
+  @@index([created_at(sort: Desc)], map: "mfa_challenge_created_at_idx")
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model mfa_factors {
+  id                   String           @id @db.Uuid
+  user_id              String           @db.Uuid
+  friendly_name        String?
+  factor_type          factor_type
+  status               factor_status
+  created_at           DateTime         @db.Timestamptz(6)
+  updated_at           DateTime         @db.Timestamptz(6)
+  secret               String?
+  phone                String?
+  last_challenged_at   DateTime?        @unique @db.Timestamptz(6)
+  web_authn_credential Json?
+  web_authn_aaguid     String?          @db.Uuid
+  mfa_challenges       mfa_challenges[]
+  users                users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, phone], map: "unique_phone_factor_per_user")
+  @@index([user_id, created_at], map: "factor_id_created_at_idx")
+  @@index([user_id])
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model one_time_tokens {
+  id         String              @id @db.Uuid
+  user_id    String              @db.Uuid
+  token_type one_time_token_type
+  token_hash String
+  relates_to String
+  created_at DateTime            @default(now()) @db.Timestamp(6)
+  updated_at DateTime            @default(now()) @db.Timestamp(6)
+  users      users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, token_type])
+  @@index([relates_to], map: "one_time_tokens_relates_to_hash_idx", type: Hash)
+  @@index([token_hash], map: "one_time_tokens_token_hash_hash_idx", type: Hash)
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model refresh_tokens {
+  instance_id String?   @db.Uuid
+  id          BigInt    @id @default(autoincrement())
+  token       String?   @unique(map: "refresh_tokens_token_unique") @db.VarChar(255)
+  user_id     String?   @db.VarChar(255)
+  revoked     Boolean?
+  created_at  DateTime? @db.Timestamptz(6)
+  updated_at  DateTime? @db.Timestamptz(6)
+  parent      String?   @db.VarChar(255)
+  session_id  String?   @db.Uuid
+  sessions    sessions? @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([instance_id])
+  @@index([instance_id, user_id])
+  @@index([parent])
+  @@index([session_id, revoked])
+  @@index([updated_at(sort: Desc)])
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model saml_providers {
+  id                String        @id @db.Uuid
+  sso_provider_id   String        @db.Uuid
+  entity_id         String        @unique
+  metadata_xml      String
+  metadata_url      String?
+  attribute_mapping Json?
+  created_at        DateTime?     @db.Timestamptz(6)
+  updated_at        DateTime?     @db.Timestamptz(6)
+  name_id_format    String?
+  sso_providers     sso_providers @relation(fields: [sso_provider_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sso_provider_id])
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model saml_relay_states {
+  id              String        @id @db.Uuid
+  sso_provider_id String        @db.Uuid
+  request_id      String
+  for_email       String?
+  redirect_to     String?
+  created_at      DateTime?     @db.Timestamptz(6)
+  updated_at      DateTime?     @db.Timestamptz(6)
+  flow_state_id   String?       @db.Uuid
+  flow_state      flow_state?   @relation(fields: [flow_state_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  sso_providers   sso_providers @relation(fields: [sso_provider_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)])
+  @@index([for_email])
+  @@index([sso_provider_id])
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model schema_migrations {
+  version String @id @db.VarChar(255)
+
+  @@schema("auth")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model sessions {
+  id             String           @id @db.Uuid
+  user_id        String           @db.Uuid
+  created_at     DateTime?        @db.Timestamptz(6)
+  updated_at     DateTime?        @db.Timestamptz(6)
+  factor_id      String?          @db.Uuid
+  aal            aal_level?
+  not_after      DateTime?        @db.Timestamptz(6)
+  refreshed_at   DateTime?        @db.Timestamp(6)
+  user_agent     String?
+  ip             String?          @db.Inet
+  tag            String?
+  mfa_amr_claims mfa_amr_claims[]
+  refresh_tokens refresh_tokens[]
+  users          users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([not_after(sort: Desc)])
+  @@index([user_id])
+  @@index([user_id, created_at], map: "user_id_created_at_idx")
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sso_domains {
+  id              String        @id @db.Uuid
+  sso_provider_id String        @db.Uuid
+  domain          String
+  created_at      DateTime?     @db.Timestamptz(6)
+  updated_at      DateTime?     @db.Timestamptz(6)
+  sso_providers   sso_providers @relation(fields: [sso_provider_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sso_provider_id])
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sso_providers {
+  id                String              @id @db.Uuid
+  resource_id       String?
+  created_at        DateTime?           @db.Timestamptz(6)
+  updated_at        DateTime?           @db.Timestamptz(6)
+  saml_providers    saml_providers[]
+  saml_relay_states saml_relay_states[]
+  sso_domains       sso_domains[]
+
+  @@schema("auth")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model users {
+  instance_id                 String?           @db.Uuid
+  id                          String            @id @db.Uuid
+  aud                         String?           @db.VarChar(255)
+  role                        String?           @db.VarChar(255)
+  email                       String?           @db.VarChar(255)
+  encrypted_password          String?           @db.VarChar(255)
+  email_confirmed_at          DateTime?         @db.Timestamptz(6)
+  invited_at                  DateTime?         @db.Timestamptz(6)
+  confirmation_token          String?           @db.VarChar(255)
+  confirmation_sent_at        DateTime?         @db.Timestamptz(6)
+  recovery_token              String?           @db.VarChar(255)
+  recovery_sent_at            DateTime?         @db.Timestamptz(6)
+  email_change_token_new      String?           @db.VarChar(255)
+  email_change                String?           @db.VarChar(255)
+  email_change_sent_at        DateTime?         @db.Timestamptz(6)
+  last_sign_in_at             DateTime?         @db.Timestamptz(6)
+  raw_app_meta_data           Json?
+  raw_user_meta_data          Json?
+  is_super_admin              Boolean?
+  created_at                  DateTime?         @db.Timestamptz(6)
+  updated_at                  DateTime?         @db.Timestamptz(6)
+  phone                       String?           @unique
+  phone_confirmed_at          DateTime?         @db.Timestamptz(6)
+  phone_change                String?           @default("")
+  phone_change_token          String?           @default("") @db.VarChar(255)
+  phone_change_sent_at        DateTime?         @db.Timestamptz(6)
+  confirmed_at                DateTime?         @default(dbgenerated("LEAST(email_confirmed_at, phone_confirmed_at)")) @db.Timestamptz(6)
+  email_change_token_current  String?           @default("") @db.VarChar(255)
+  email_change_confirm_status Int?              @default(0) @db.SmallInt
+  banned_until                DateTime?         @db.Timestamptz(6)
+  reauthentication_token      String?           @default("") @db.VarChar(255)
+  reauthentication_sent_at    DateTime?         @db.Timestamptz(6)
+  is_sso_user                 Boolean           @default(false)
+  deleted_at                  DateTime?         @db.Timestamptz(6)
+  is_anonymous                Boolean           @default(false)
+  identities                  identities[]
+  mfa_factors                 mfa_factors[]
+  one_time_tokens             one_time_tokens[]
+  sessions                    sessions[]
+  Simulacao                   Simulacao[]
+  user_roles                  user_roles[]
+  usuarios                    usuarios?
+
+  @@index([instance_id])
+  @@index([is_anonymous])
+  @@schema("auth")
+}
+
+model Bancos_Financeiro {
+  id           BigInt   @id(map: "Bacos_Financeiro_pkey") @default(autoincrement())
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  Codigo       Int      @unique(map: "Bacos_Financeiro_Codigo_key")
+  Banco        String   @unique(map: "Bacos_Financeiro_Banco_key")
+  codigo_teste Int?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Bancos_Fornecedores {
+  id         BigInt      @id @default(autoincrement())
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  Banco      String
+  id_usuario BigInt?
+  imagePath  String?
+  tb_depara  tb_depara[]
+
+  @@schema("public")
+}
+
+model Cargos {
+  id         BigInt       @id @default(autoincrement())
+  created_at DateTime     @default(now()) @db.Timestamptz(6)
+  Cargo      String       @unique
+  user_roles user_roles[]
+  usuarios   usuarios[]
+
+  @@schema("public")
+}
+
+model Lider {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  Lider      String   @unique
+
+  @@schema("public")
+}
+
+model Nacionalidade {
+  id            BigInt   @id @default(autoincrement())
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  nacionalidade String?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Produto {
+  id                     BigInt                   @id @unique @default(autoincrement())
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  produto                String                   @unique
+  usuario_criacao        String?                  @db.Uuid
+  produto_itau           String                   @unique
+  produto_santander      BigInt?
+  tb_comiss_es_parceiros tb_comiss_es_parceiros[]
+
+  @@schema("public")
+}
+
+model Proponentes_detalhes {
+  id                   BigInt   @id @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente           String
+  nr_proponente        Int
+  data_nasc            String?
+  nome                 String?
+  sexo                 String?
+  nome_mae             String?
+  nacionalidade        String?
+  nr_cpf               String?
+  nr_rg                String?
+  orgao_expedidor      String?
+  uf_rg                String?
+  data_emissao_rg      String?
+  tipo_contato         String?  @default("Celular")
+  nr_celular           String?
+  email                String?
+  cep                  String?
+  endereco             String?
+  nr_endereco          String?
+  municipo_endereco    String?
+  complemento_endereco String?
+  cidade               String?
+  uf_endereco          String?
+  tipo_endereco        String?
+  profissao            String?
+  regime_trabalho      String?
+  cnpj_empresa         String?
+  nome_empresa         String?
+  dados_bancarios      String?
+  dt_admissao          String?
+  outras_rendas        String?
+  renda_mensal         Float?
+  conjuge              Boolean?
+  id_profissao         BigInt?
+  id_proposta          BigInt?
+  tipo_documento       String?
+  tipo_residencia      String?
+  cargo                String?
+
+  @@schema("public")
+}
+
+model Simulacao {
+  id                       BigInt   @id @default(autoincrement())
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  produto                  String
+  tipo_imovel              String
+  valor_imovel             Float
+  valor_entrada            Float
+  prazo                    Int
+  dt_nascimento_proponente String
+  renda_proponente         Float
+  nr_doc_proponente        String
+  valor_emprestimo         Float?
+  uuid_user                String   @db.Uuid
+  id_simulacao_itau        String?
+  id_usuario               String?
+  nome                     String?
+  taxa_juros               Float?
+  cet_anual                Float?
+  users                    users    @relation(fields: [uuid_user], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "public_Simulacao_uuid_user_fkey")
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Tb_parceiro {
+  id                         BigInt              @id @unique @default(autoincrement())
+  created_at                 DateTime?           @default(now()) @db.Timestamptz(6)
+  Nome_fantasia              String?
+  Razao_social               String?
+  CNPJ                       String              @unique
+  CPF                        String?
+  UF                         String?
+  Cidade                     String?
+  Tp_logradouro              String?
+  Endereco                   String?
+  Numero                     Int?
+  CEP                        String?
+  Email_comercial            String?
+  Email_financeiro           String?
+  Telefone_comercial         String?
+  Telefone_financeiro        String?
+  Banco_financeiro           String?
+  Agencia                    String?
+  Conta                      String?
+  Tp_pix                     String?
+  Chave_pix                  String?
+  Regime_tributario          String?
+  Id_canal                   BigInt?
+  Id_comissoes_parceiros     BigInt?
+  Estimativa_contratos       String?
+  Id_contrato                BigInt?
+  Id_tp_parceiro             BigInt?
+  Numero_contrato_projetados String?
+  Id_classificacao_parceiro  BigInt?
+  Id_recorrencia_parceiro    BigInt?
+  Aprovacao_parceiro         Boolean?
+  Data_aprovacao             String?
+  Id_usuario_aprovacao       BigInt?
+  Id_consultor               BigInt?
+  bairro                     String?
+  complemento                String?
+  origem                     BigInt?
+  nome_responsavel           String?
+  tb_origem_parceiro         tb_origem_parceiro? @relation(fields: [origem], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model Tp_Canal {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  Canal      String   @unique
+  Id_usuario String?  @db.Uuid
+
+  @@schema("public")
+}
+
+model Tp_parceiro {
+  id            BigInt   @id @default(autoincrement())
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  Tipo_parceiro String   @unique
+  id_usuario    String?  @db.Uuid
+
+  @@schema("public")
+}
+
+model UF {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  uf         String?
+  nome_uf    String?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model chat_homologa__o {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente BigInt?
+  id_envio   BigInt?
+  id_receb   BigInt?
+  mensagem   String?
+  status     String?
+  situacao   String?
+
+  @@map("chat_homologação")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model clientes_detalhes {
+  id                       BigInt    @id @unique @default(autoincrement())
+  created_at               DateTime? @default(now()) @db.Timestamptz(6)
+  cpf_cnpj                 BigInt?   @unique
+  nome                     String?
+  estado_civil             String?
+  nacionalidade            String?
+  tipo_imovel              String?
+  sexo                     String?
+  tipo_contato             String?   @default("")
+  rg                       String?   @default("")
+  tipo_endereco            String?
+  tipo_renda               String?
+  tipo_amortizacao         String?
+  tipo_taxa_financiamento  String?
+  UF_proponente            String?
+  CEP                      String?
+  valor_entrada            Float?
+  prazo                    Int?
+  municipio_imovel         String?
+  FGTS                     Boolean?
+  nr_pis                   String?
+  UF_imovel                String?
+  tipo_carteira            String?
+  seguradora               String?
+  ITBI                     Boolean?
+  percent_itbi             String?
+  vlr_itbi                 Float?    @default(0)
+  id_incorporadora         BigInt?
+  id_empreedimento         BigInt?
+  id_bloco                 BigInt?
+  id_unidade               BigInt?
+  dt_nasc                  String?
+  nome_mae                 String?
+  orgao_expedidor          String?
+  uf_rg                    String?
+  data_emissao_rg          String?
+  nr_contato               String?
+  email                    String?
+  endereco                 String?
+  numero_endereco          String?   @default("")
+  bairro_endereco          String?
+  complemento_endereco     String?   @default("")
+  cidade_endereco          String?
+  profissao                String?
+  regime_trabalho          String?
+  cnpj_empresa_cliente     String?
+  nome_empresa             String?
+  dados_bancarios          String?
+  data_admissao            String?
+  outras_rendas            String?
+  vlr_renda_mensal         Float?
+  estado_civil_cliente     String?
+  regime_casamento         String?
+  segundo_proponente       Boolean?
+  uniao_estavel            Boolean?
+  id_segundo_proponente    BigInt?
+  id_terceiro_proponente   BigInt?
+  terceiro_proponente      Boolean?
+  cpf_cliente              String?
+  id_consultor             BigInt?
+  id_lider                 Int?
+  parceiro                 String?
+  valor_imovel             Float?
+  credito_aprovado         Float?
+  taxa_juros               Float?    @db.Real
+  vlr_solicitado           Float?
+  vlr_fgts                 Float?
+  id_profissao             BigInt?
+  tipo_documento           String?
+  cargo                    String?
+  tipo_residencia          String?
+  agencia                  BigInt?
+  conta                    BigInt?
+  digitoConta              BigInt?
+  codigoCategoriaProfissao BigInt?
+  percent_itbi_number      Float?
+
+  @@schema("public")
+}
+
+model empreendimentos {
+  id                 BigInt          @id @default(autoincrement())
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  nome_empreedimento String?
+  id_incorporadora   Int?            @unique
+  nome_incorporadora String?
+  incorporadoras     incorporadoras? @relation(fields: [id_incorporadora], references: [id_banco], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model incorporadoras {
+  id                 BigInt           @id @default(autoincrement())
+  created_at         DateTime         @default(now()) @db.Timestamptz(6)
+  nome_incorporadora String?
+  id_banco           Int?             @unique(map: "incorporadoras_id_itau_key")
+  empreendimentos    empreendimentos?
+
+  @@schema("public")
+}
+
+model orgaoExpedidor {
+  id             BigInt   @id @default(autoincrement())
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  id_key         String?
+  keyDescription String?
+
+  @@schema("public")
+}
+
+model profissoes {
+  id              BigInt   @id @default(autoincrement())
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  id_key          BigInt?
+  keyDescription  String?
+  id_key_bradesco BigInt?
+  id_key_inter    String?
+
+  @@schema("public")
+}
+
+model simulacao_santander {
+  id                         BigInt   @id @default(autoincrement())
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  id_santander               String?
+  id_santander_decript       String?
+  produto                    String?
+  valor_imovel               Float?
+  fgts                       Float?
+  valor_solicitado           Float?
+  prazo_anos                 BigInt?
+  prazo_meses                BigInt?
+  valor_minimo_solicitado    Float?
+  valor_maximo_solicitado    Float?
+  valor_entrada              Float?
+  valor_custas               Float?
+  valor_iof                  Float?
+  valor_financiamento_custas Float?
+  index_tr                   String?
+  tipo_carteira              String?
+  campanha                   String?
+  key_campanha               String?
+  segmento                   String?
+  key_segmento               String?
+  relacionamento_banco       String?
+  key_relacionamento_banco   String?
+  seguro                     String?
+  key_seguro                 String?
+  amortizacao                String?
+  key_amortizacao            String?
+  tipo_pagamento             String?
+  key_tipo_pagamento         String?
+  tipo_simulacao             String?
+  taxa_juros_anual           Float?
+  taxa_juros_mensal          Float?
+  primeira_parcela           Float?
+  ultima_parcela             Float?
+  cet                        Float?
+  cesh                       Float?
+  nome                       String?
+  tipo_imovel                String?
+  cpf                        String?
+  celular                    String?
+  renda                      Float?
+  dt_nascimento              String?
+  id_usuario                 String?
+
+  @@schema("public")
+}
+
+model tb_alertas {
+  id           BigInt   @id @default(autoincrement())
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  id_consultor BigInt?
+  alerta       String?
+  subAlerta    String?
+  situacao     String?
+  status       String?
+  visualizado  Boolean?
+  nome_cliente String?
+  id_cliente   BigInt?
+
+  @@schema("public")
+}
+
+model tb_bradesco {
+  id                              BigInt   @id @default(autoincrement())
+  created_at                      DateTime @default(now()) @db.Timestamptz(6)
+  bairro                          String?
+  cep                             BigInt?
+  cesh                            Float?
+  cidade                          String?
+  codigoCarteira                  String?
+  complemento                     String?
+  cpfVendedor                     BigInt?
+  dataAgendamentoAvaliacao        String?
+  dataLiberacao                   String?
+  dataSimulacao                   String?
+  dataValidade                    String?
+  dddTelefoneContatoVistoria      BigInt?
+  dddTelefoneVendedor             BigInt?
+  descricaoCarteira               String?
+  descricaoGarantia               String?
+  estado                          String?
+  responsavelAvaliacao            String?
+  etapa1_Status                   BigInt?
+  etapa2_Status                   BigInt?
+  etapa3_status                   BigInt?
+  etapa4_status                   BigInt?
+  indexador                       String?
+  iof                             String?
+  nomeContatoVistoria             String?
+  nomeVendedor                    String?
+  rua                             String?
+  numeroRua                       String?
+  parcentualTag                   Float?
+  percentualDevidoContratacao     Float?
+  percentualLiberado              Float?
+  permiteFgts                     BigInt?
+  prazoPagamento                  BigInt?
+  rendaInformada                  Float?
+  rendaLiquidaMinima              Float?
+  sistemaAmortizador              String?
+  statusAguardandoLaudo           String?
+  statusAtualProposta             String?
+  tarifaTag                       Float?
+  taxaAdministracao               Float?
+  taxaJurosEfetivaAno             Float?
+  taxaNominal                     Float?
+  telefoneContatoVistoria         BigInt?
+  telefoneVendedor                BigInt?
+  totalDespesas                   Float?
+  valorAvaliacao                  Float?
+  valorDevidoContratacao          Float?
+  valorFgts                       Float?
+  valorFinanciamento              Float?
+  valorImovel                     Float?
+  valorLiberado                   Float?
+  valorPrestacaoMensal            Float?
+  valorPrimeiraPrestacaoComSeguro Float?
+  valorPrimeiraPrestacaoSemSeguro Float?
+  valorRdm                        Float?
+  valorRecursoProprio             Float?
+  valorSeguro                     Float?
+  valorTarifaAvaliacao            Float?
+  valorTotalFinanciamento         Float?
+  valorUltimaPrestacao            Float?
+  dddTelefoneBpo                  BigInt?
+  telefoneBpo                     BigInt?
+  codigoFormaPagamento            String?
+  descricaoFormaPagamento         String?
+  flagOptInRecursos               String?
+  flagOptInTeimosinha             String?
+  codigoContrato                  String?
+  taxaJurosFixa                   Float?
+  taxaPoup                        Float?
+  numeroProposta                  BigInt?
+  id_cliente_most                 BigInt?
+  id_status_most                  BigInt?
+  id_situacao_most                BigInt?
+  vlr_imovel                      Float?
+  cet                             Float?
+  ltv                             Float?
+  id_substatus_most               BigInt?
+  ltv_text                        String?
+  total_documentos                BigInt?
+  proposta_copiada                Boolean?
+  id_cliente_incorporador         BigInt?
+  id_produto                      BigInt?
+
+  @@schema("public")
+}
+
+model tb_bradesco_doc {
+  id                   BigInt   @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most      BigInt
+  nome_documento       String?
+  documento            String?
+  id_status_documento  BigInt?
+  observacao_documento String?
+  motivo_da_recusa     String?
+  total_documentos     BigInt?
+
+  @@id([id, id_cliente_most])
+  @@schema("public")
+}
+
+model tb_caixa {
+  id                       BigInt   @id @default(autoincrement())
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  id_produto               BigInt?
+  valor_imovel             Float?
+  valor_financiamento      Float?
+  valor_entrada            Float?
+  prazo                    BigInt?
+  fgts                     Boolean?
+  valor_fgts               Float?
+  itbi                     Boolean?
+  valor_itbi               Float?
+  tipo_amortizacao         String?
+  tipo_imovel              String?
+  uf_imovel                String?
+  tipo_taxa                String?
+  situacao_imovel          String?
+  id_cliente               BigInt?
+  valor_aprovado           Float?
+  id_status_most           BigInt?
+  id_situacao_most         BigInt?
+  taxa_juros               Float?
+  ltv                      String?
+  id_proposta              BigInt?
+  status_atual_proposta    String?
+  cet                      Float?
+  id_substatus_most        BigInt?
+  linhaDeCredito           String?
+  validadeDaAprovacao      String?
+  agencia_de_assinatura    String?
+  valor_de_avaliacao       String?
+  avaliacao_aprovada       Boolean?
+  motivo                   String?
+  data_de_agendamento      String?
+  local_da_assinatura      String?
+  horario                  String?
+  data_finalizacao         String?
+  total_documentos         BigInt?
+  taxa_a_vista             String?
+  Incorporadora            String?
+  Empreendimento           String?
+  Bloco                    String?
+  Unidade                  String?
+  confirmar_valores        BigInt?
+  data_confirmar_valores   String?
+  confirmar_Minuta         BigInt?
+  data_confirmar_minuta    String?
+  confirmar_valores_bool   Boolean?
+  motivo_confirmar_valores String?
+  motivo_minuta            String?
+  id_cliente_incorporador  BigInt?
+
+  @@schema("public")
+}
+
+model tb_caixa_doc {
+  id                      BigInt   @id @default(autoincrement())
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most         BigInt?
+  nome_documento          String?
+  documento               String?
+  id_status_documento     BigInt?
+  observacao_documento    String?
+  motivo_da_recusa        String?
+  total_documentos        BigInt?
+  id_cliente_incorporador BigInt?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tb_cliente_incorporadora {
+  id                         BigInt   @id(map: "tb_cliente_incoporadora_pkey") @default(autoincrement())
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  id_incorporadora           BigInt?
+  id_empreendimento          BigInt?
+  id_bloco                   BigInt?
+  id_unidade                 BigInt?
+  nome                       String?
+  cpf_cnpj                   String?
+  telefone                   String?
+  email                      String?
+  saldo_devedor              Float?
+  id_cliente_most            BigInt?
+  valor_aprovado             Float?
+  pro_soluto                 Float?
+  id_consultor               BigInt?
+  id_status_incorporadora    BigInt?
+  id_banco_decisao           BigInt?
+  previsao_emissao           String?
+  ultimo_contato             String?
+  id_lider                   BigInt?
+  valor_do_imovel            BigInt?
+  id_itau                    BigInt?
+  id_santander               BigInt?
+  id_bradesco                BigInt?
+  id_caixa                   BigInt?
+  id_inter                   BigInt?
+  id_status_most             BigInt?
+  id_situacao_most           BigInt?
+  Ultima_atualiza__o         String?  @map("Ultima_atualização")
+  id_bancofornecedor_decisao BigInt?
+  data_banco_decisao         String?
+  data_finalizacao           String?
+  certificado                Boolean?
+  path_certificado           String?
+  id_status_certificado      BigInt?
+  data_certificado           String?
+  id_metodo_pagamento        BigInt?
+  consorcio                  Boolean?
+  path_consorcio             String?
+  id_status_consorcio        BigInt?
+  data_consorcio             String?
+  Valor_da_Venda             Float?   @map("Valor da Venda")
+  Valor_da_Venda_Atualizado  Float?   @map("Valor da Venda Atualizado")
+  telefone_2                 String?
+  valor_solicitado           Float?
+  id_analista_registro       BigInt?
+  Saldo_Devedor_Atualizado   Float?   @map("Saldo Devedor Atualizado")
+
+  @@schema("public")
+}
+
+model tb_clientes {
+  id                         BigInt              @id @unique @default(autoincrement())
+  created_at                 DateTime?           @default(now()) @db.Timestamptz(6)
+  cpf                        String              @unique
+  id_santander               BigInt?
+  id_itau                    String?
+  id_bradesco                BigInt?
+  id_cef                     BigInt?
+  id_inter                   String?
+  valor_solicitado           Float?
+  id_status                  Int?
+  id_situacao                Int?
+  id_produto                 Int?
+  data_finalizacao           String?
+  id_incorporadora           String?
+  id_banco_decisao           String?
+  valor_reemissao            Float?
+  parceiro                   String?
+  dt_ult_atualizacao         String?
+  id_consultor               BigInt?
+  situacao_itau_teste        String?
+  id_bancofornecedor_decisao BigInt?
+  data_banco_decisao         String?
+  id_parceiro                BigInt?
+  id_cliente_incorporador    BigInt?
+  tb_itau_duplicate          tb_itau_duplicate[]
+
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tb_clientes_homologacao {
+  id                         BigInt    @id @unique @default(autoincrement())
+  created_at                 DateTime? @default(now()) @db.Timestamptz(6)
+  cpf                        String    @unique
+  id_santander               BigInt?
+  id_itau                    String?
+  id_bradesco                BigInt?
+  id_cef                     BigInt?
+  id_inter                   BigInt?
+  valor_solicitado           Float?
+  id_status                  Int?
+  id_situacao                Int?
+  id_produto                 Int?
+  data_finalizacao           String?
+  id_incorporadora           Int?
+  id_banco_decisao           String?
+  valor_reemissao            Float?
+  parceiro                   String?
+  dt_ult_atualizacao         String?
+  id_consultor               BigInt?
+  situacao_itau_teste        String?
+  id_bancofornecedor_decisao BigInt?
+
+  @@schema("public")
+}
+
+model tb_comiss_es_parceiros {
+  id                   BigInt   @id @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  id_parceiro          BigInt?
+  id_produto           BigInt?
+  id_banco             BigInt?
+  vlr_min              Float?
+  vlr_max              Float?
+  porcentagem_comissao Float?
+  ativo                Boolean?
+  data_alteracao       String?
+  subproduto           String?
+  Produto              Produto? @relation(fields: [id_produto], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("tb_comissões_parceiros")
+  @@schema("public")
+}
+
+model tb_consultorProposta_log {
+  id                BigInt   @id @default(autoincrement())
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most   BigInt?
+  de_consultor      BigInt?
+  para_consultor    BigInt?
+  usuario_alteracao BigInt?
+
+  @@schema("public")
+}
+
+model tb_contato_empreendimento {
+  id                 BigInt   @id @default(autoincrement())
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  id_empreendimento  BigInt?
+  nome               String?
+  celular            String?
+  email              String?
+  id_usuario_criacao BigInt?
+
+  @@schema("public")
+}
+
+model tb_depara {
+  id                  Int                 @id @default(autoincrement())
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  status              String?
+  sub_status          String?
+  id_banco            BigInt
+  id_status_most      BigInt?
+  id_situacao_most    BigInt
+  Bancos_Fornecedores Bancos_Fornecedores @relation(fields: [id_banco], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tb_situacao         tb_situacao         @relation(fields: [id_situacao_most], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tb_status           tb_status?          @relation(fields: [id_status_most], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model tb_documentos_empreendimento {
+  id                  BigInt   @id @default(autoincrement())
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  id_empreendimento   BigInt?
+  nome_documento      String?
+  documento           String?
+  id_status_documento BigInt?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model tb_documentos_incorporadora {
+  id                  BigInt   @id @default(autoincrement())
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most     BigInt?
+  nome_documento      String?
+  documento           String?
+  id_status_documento String?
+  id_consultor        BigInt?
+
+  @@schema("public")
+}
+
+model tb_empreendimento_most {
+  id                             BigInt                 @id @default(autoincrement())
+  created_at                     DateTime               @default(now()) @db.Timestamptz(6)
+  empreendimento                 String?
+  id_incorporadora               BigInt?
+  incorporadora                  String?
+  id_banco_obra                  BigInt?
+  id_produto_empreendimento      BigInt?
+  qtd_unidades                   BigInt?
+  data_habitese                  String?
+  path_da_imagem                 String?
+  registro                       Boolean?
+  estoque                        String?
+  data_matricula_individualizada String?
+  valor_registro                 String?
+  valo_consorcio                 String?
+  valor_certificado              String?
+  consorcio                      Boolean?
+  certificado                    Boolean?
+  path_itau_laudo                String?
+  path_santander_laudo           String?
+  path_bradesco_laudo            String?
+  path_caixa_laudo               String?
+  path_inter_laudo               String?
+  saldo_devedor_pj               Float?
+  cnpj_spe                       String?
+  tb_incorporadora_most          tb_incorporadora_most? @relation(fields: [id_incorporadora], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+model tb_faq {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  titulo     String?
+  descricao  String?
+
+  @@schema("public")
+}
+
+model tb_fasePropostas_log {
+  id_faseProposta         BigInt   @id @default(autoincrement())
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente              BigInt?
+  id_proposta             String?
+  id_de_status_most       BigInt?
+  id_de_situacao_most     BigInt?
+  id_de_status_banco      BigInt?
+  id_de_substatus_banco   BigInt?
+  id_para_status_most     BigInt?
+  id_para_situacao_most   BigInt?
+  id_para_status_banco    BigInt?
+  id_para_substatus_banco BigInt?
+  id_banco                BigInt?
+  id_usuario              BigInt?
+  de_status_banco         String?
+  para_status_banco       String?
+
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tb_fasePropostas_log_homologacao {
+  id_faseProposta         BigInt   @id @default(autoincrement())
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente              BigInt?
+  id_proposta             String?
+  id_de_status_most       BigInt?
+  id_de_situacao_most     BigInt?
+  de_status_banco         String?
+  id_de_substatus_banco   BigInt?
+  id_para_status_most     BigInt?
+  id_para_situacao_most   BigInt?
+  para_status_banco       String?
+  id_para_substatus_banco BigInt?
+  id_banco                BigInt?
+  id_usuario              BigInt?
+
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tb_fasePropostas_log_inc {
+  id_faseProposta         BigInt   @id @default(autoincrement())
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_inc          BigInt?
+  id_proposta             String?
+  id_de_status_most       BigInt?
+  id_de_situacao_most     BigInt?
+  id_de_status_banco      BigInt?
+  id_de_substatus_banco   BigInt?
+  id_para_status_most     BigInt?
+  id_para_situacao_most   BigInt?
+  id_para_status_banco    BigInt?
+  id_para_substatus_banco BigInt?
+  id_banco                BigInt?
+  id_usuario              BigInt?
+  de_status_banco         String?
+  para_status_banco       String?
+  id_de_status_inc        BigInt?
+  id_para_status_inc      BigInt?
+  de_status_inc           String?
+  para_status_inc         String?
+
+  @@schema("public")
+}
+
+model tb_incorporadora_most {
+  id                     BigInt                   @id @default(autoincrement())
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  incorporadora          String?
+  id_inc_itau            BigInt?
+  nome_inc_itau          String?
+  path_imagem            String?
+  CNPJ                   String?
+  responsavel            String?
+  telefone               String?
+  email                  String?
+  tb_empreendimento_most tb_empreendimento_most[]
+
+  @@schema("public")
+}
+
+model tb_inter {
+  id                        BigInt   @id @default(autoincrement())
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  cpf                       String?
+  id_cliente_most           BigInt?
+  id_proposta               String?
+  id_simulacao              String?
+  taxaIof                   Float?
+  taxa                      String?
+  taxaJuros                 String?
+  cet                       Float?
+  cesh                      Float?
+  valorFinanciamento        Float?
+  valorEntrada              Float?
+  valorImovel               Float?
+  valorLiberado             Float?
+  tarifaAvaliacao           Float?
+  valorPrimeiraParcela      Float?
+  valorUltimaParcela        Float?
+  totalDevido               Float?
+  prazoEmprestimo           BigInt?
+  produtoAprovado           String?
+  tipoProduto               String?
+  etapaAtual                String?
+  etapaTarefaPreAnalise     String?
+  etapaTarefaAnaliseCredito String?
+  statusAnaliseCredito      String?
+  modeloOperacional         String?
+  sistemaAmortizacao        String?
+  indexador                 String?
+  despesas                  Float?
+  dataProposta              String?
+  rendaSugerida             Float?
+  estadoImovel              String?
+  tipoImovel                String?
+  id_status_most            BigInt?
+  id_situacao_most          BigInt?
+  id_substatus_most         BigInt?
+  situacao                  String?
+  ltv                       Float?
+  taxa_de_juros_float       Float?
+  ltv_text                  String?
+  numero_proposta           String?
+  id_cliente_incorporador   BigInt?
+  id_produto                BigInt?
+
+  @@schema("public")
+}
+
+model tb_itau {
+  id_most                   BigInt   @id @default(autoincrement())
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  id_proposta               String   @unique
+  decisao_credito           String?
+  emissao_contrato          String?
+  assinatura_contrato       String?
+  vencimento_credito        String?
+  liberacao_recurso         String?
+  entrada_pasta             String?
+  status_global             String?
+  id_credito                Int?
+  descricao_credito         String?
+  id_contratacao            Int?
+  descricao_contratacao     String?
+  id_atividade              Int?
+  prazo_aprovado            BigInt?
+  taxa_juros_anual          Float?   @db.Real
+  valor_itbi                Float?
+  valor_avaliacao           Float?
+  credito_aprovado          Float?
+  agencia_numero            String?
+  agencia_funcional_gerente String?
+  id_cliente_most           BigInt?
+  ltv                       String?
+  prazo                     BigInt?
+  cet                       Float?
+  valor_solicitado          Float?
+  id_status_most            BigInt?
+  id_situacao_most          BigInt?
+  id_substatus_most         BigInt?
+  status_laudo              String?
+  data_abertura_laudo       String?
+  data_encerramento_laudo   String?
+  data_agendamento          String?
+  data_implantacao_contrato String?
+  valor_fgts                Float?
+  valor_compra_venda        Float?
+  valor_tarifas             Float?
+  total_credito             Float?
+  id_incorporadora          BigInt?
+  id_empreendimento         BigInt?
+  id_bloco                  BigInt?
+  id_unidade                BigInt?
+  id_anexo                  BigInt?
+  unidade                   String?
+  anexo                     String?
+  bloco                     String?
+  proposal_uuid             String?
+  total_documentps          BigInt?
+  proposta_copiada          Boolean?
+  id_cliente_incorporador   BigInt?
+  id_produto                BigInt?
+
+  @@schema("public")
+}
+
+model tb_itau_doc {
+  id                   BigInt   @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most      BigInt
+  nome_documento       String?
+  documento            String?
+  id_status_documento  BigInt?
+  observacao_documento String?
+  motivo_da_recusa     String?
+  total_documentos     BigInt?
+
+  @@id([id, created_at, id_cliente_most])
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tb_itau_duplicate {
+  id_most                   BigInt       @id @default(autoincrement())
+  created_at                DateTime     @default(now()) @db.Timestamptz(6)
+  id_proposta               String       @unique
+  decisao_credito           String?
+  emissao_contrato          String?
+  assinatura_contrato       String?
+  vencimento_credito        String?
+  liberacao_recurso         String?
+  entrada_pasta             String?
+  status_global             String?
+  id_credito                Int?
+  descricao_credito         String?
+  id_contratacao            Int?
+  descricao_contratacao     String?
+  id_atividade              Int?
+  prazo_aprovado            BigInt?
+  taxa_juros_anual          Float?       @db.Real
+  valor_itbi                Float?
+  valor_avaliacao           Float?
+  credito_aprovado          Float?
+  agencia_numero            String?
+  agencia_funcional_gerente String?
+  id_cliente_most           BigInt?
+  ltv                       String?
+  prazo                     BigInt?
+  cet                       Float?
+  valor_solicitado          Float?
+  id_status_most            BigInt?
+  id_situacao_most          BigInt?
+  id_substatus_most         BigInt?
+  status_laudo              String?
+  data_abertura_laudo       String?
+  data_encerramento_laudo   String?
+  tb_clientes               tb_clientes? @relation(fields: [id_cliente_most], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model tb_metodo_pagamento {
+  id                         BigInt   @id @default(autoincrement())
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  metodo_pagamento           String?
+  metodo_pagamento_enumerado String?
+
+  @@schema("public")
+}
+
+model tb_observa__es {
+  id                     BigInt   @id @default(autoincrement())
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente             BigInt?
+  id_status              BigInt?
+  id_situacao            BigInt?
+  mensagem               String?
+  id_usuario             BigInt?
+  nome_consultor         String?
+  id_status_incorporador BigInt?
+  id_incorporadora       BigInt?
+
+  @@map("tb_observações")
+  @@schema("public")
+}
+
+model tb_origem_parceiro {
+  id          BigInt        @id @default(autoincrement())
+  created_at  DateTime      @default(now()) @db.Timestamptz(6)
+  origem      String?
+  Tb_parceiro Tb_parceiro[]
+
+  @@schema("public")
+}
+
+model tb_profissaoOcupacao_bradesco {
+  id                 BigInt   @id @default(autoincrement())
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  id_key             BigInt?
+  profissao_ocupacao String?
+
+  @@schema("public")
+}
+
+model tb_registro {
+  id                            BigInt   @id @default(autoincrement())
+  created_at                    DateTime @default(now()) @db.Timestamptz(6)
+  ITBI_Gerado                   Boolean?
+  ITBI_GERADO_DATA              String?
+  ITBI_enviado                  Boolean?
+  ITBI_Enviado_Data             String?
+  Comprador                     Boolean?
+  Comprador_Data                String?
+  Vendedor                      Boolean?
+  Vendedor_Data                 String?
+  Protocolo_Gerado              Boolean?
+  Protocolo_Gerado_Data         String?
+  Enviado_ao_Banco              Boolean?
+  Enviado_ao_Banco_Data         String?
+  Envio                         Boolean?
+  Envio_Data                    String?
+  Liberado                      Boolean?
+  Liberado_Data                 String?
+  Conclusao                     Boolean?
+  Conclusao_Data                String?
+  id_cliente                    BigInt?
+  id_bloco                      BigInt?
+  id_unidade                    BigInt?
+  id_empreendimento             BigInt?
+  ITBI_finalizado               Boolean?
+  ITBI_Finalizado_Data          String?
+  Protocolo_path                String?
+  id_status_documento_protocolo BigInt?
+  id_status_documento_ITBI_pago BigInt?
+
+  @@schema("public")
+}
+
+model tb_santander {
+  id                              BigInt   @id @default(autoincrement())
+  created_at                      DateTime @default(now()) @db.Timestamptz(6)
+  id_proposta                     String?
+  id_simulacao                    String?
+  id_cliente                      String?
+  produto                         String?
+  id_produto                      BigInt?
+  valor_imovel                    Float?
+  valor_fgts                      Float?
+  prazo_anos                      BigInt?
+  prazo_meses                     BigInt?
+  valor_financiamento_minimo      Float?
+  valor_financiado_maximo         Float?
+  valor_entrada                   Float?
+  valor_despesas                  Float?
+  valor_iof                       Float?
+  valuation_fee_amount            Float?
+  valor_financiamento_despesas    Float?
+  indexador_tr                    String?
+  tipo_carteira                   String?
+  campanha                        String?
+  id_campanha                     String?
+  segmento                        String?
+  id_segmento                     String?
+  oferta_relacionamento           String?
+  id_oferta_relacionamento        String?
+  seguro                          String?
+  id_seguro                       String?
+  tipo_amortizacao                String?
+  chave_tipo_amortizacao          String?
+  tipo_pagamento                  String?
+  chave_tipo_pagamento            String?
+  tipo_simulacao_calculada        String?
+  valor_juros_anual               Float?
+  valor_juros_mensal              Float?
+  valor_primeira_parcela          Float?
+  valor_ultima_parcela            Float?
+  valor_cet                       Float?
+  valor_cesh                      Float?
+  situacao                        String?
+  ltv                             String?
+  valor_financiado                Float?
+  id_cliente_most                 BigInt?
+  id_status_most                  BigInt?
+  id_situacao_most                BigInt?
+  id_substatus_most               BigInt?
+  status_global                   String?
+  status_simulation               String?
+  status_creditAnalysis           String?
+  status_informationRegister      String?
+  status_documentSubmission       String?
+  status_inspection               String?
+  status_documentAnalysis         String?
+  status_currentAccount           String?
+  status_interveningPayer         String?
+  status_dataAndValueVerification String?
+  status_fgts                     String?
+  status_printingAndSignature     String?
+  status_signatureCheck           String?
+  status_contractSubmission       String?
+  status_releaseOfFunds           String?
+  taxa_juros_percent              Float?
+  total_documentos                BigInt?
+  proposta_copiada                Boolean?
+  id_cliente_incorporador         BigInt?
+
+  @@schema("public")
+}
+
+model tb_santander_doc {
+  id                   BigInt   @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  id_cliente_most      BigInt
+  nome_documento       String?
+  documento            String?
+  id_status_documento  BigInt?
+  observacao_documento String?
+  motivo_da_recusa     String?
+  total_documentos     BigInt?
+
+  @@id([id, id_cliente_most])
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tb_santander_homologacao {
+  id                           BigInt   @id @default(autoincrement())
+  created_at                   DateTime @default(now()) @db.Timestamptz(6)
+  id_proposta                  String?
+  id_simulacao                 String?
+  id_cliente                   String?
+  produto                      String?
+  id_produto                   BigInt?
+  valor_imovel                 Float?
+  valor_fgts                   Float?
+  prazo_anos                   BigInt?
+  prazo_meses                  BigInt?
+  valor_financiamento_minimo   Float?
+  valor_financiado_maximo      Float?
+  valor_entrada                Float?
+  valor_despesas               Float?
+  valor_iof                    Float?
+  valuation_fee_amount         Float?
+  valor_financiamento_despesas Float?
+  indexador_tr                 String?
+  tipo_carteira                String?
+  campanha                     String?
+  id_campanha                  String?
+  segmento                     String?
+  id_segmento                  String?
+  oferta_relacionamento        String?
+  id_oferta_relacionamento     String?
+  seguro                       String?
+  id_seguro                    String?
+  tipo_amortizacao             String?
+  chave_tipo_amortizacao       String?
+  tipo_pagamento               String?
+  chave_tipo_pagamento         String?
+  tipo_simulacao_calculada     String?
+  valor_juros_anual            Float?
+  valor_juros_mensal           Float?
+  valor_primeira_parcela       Float?
+  valor_ultima_parcela         Float?
+  valor_cet                    Float?
+  valor_cesh                   Float?
+  situacao                     String?
+  ltv                          String?
+  valor_financiado             Float?
+  id_cliente_most              BigInt?
+  id_status_most               BigInt?
+  id_situacao_most             BigInt?
+  id_substatus_most            BigInt?
+  status_global                String?
+
+  @@schema("public")
+}
+
+model tb_simulacao_bradesco {
+  id                                 BigInt   @id @default(autoincrement())
+  created_at                         DateTime @default(now()) @db.Timestamptz(6)
+  tipoSistemaAmortizador             String?
+  valorFinanciamento                 Float?
+  prazoFinanciamento                 BigInt?
+  valorTaxaJurosEfetivoAno           Float?
+  valorPrimeiraPrestacaoSemSeguroTac Float?
+  valorPrimeiraPrestacaoComSeguroTac Float?
+  valorUltimaPrestacao               Float?
+  valorRendaInformada                Float?
+  valorRendaLiquidaMinimaExigida     Float?
+  valorCeshAno                       Float?
+  valorCetAno                        Float?
+  valorDevidoAtoContratacao          Float?
+  percentualDevidoAtoContratacao     Float?
+  valorLiberadoCliente               Float?
+  percentualValorLiberadoCliente     Float?
+  percentualTag                      Float?
+  valorSeguro                        Float?
+  valorTaxaAdministracaoMensal       Float?
+  indicadorFgts                      Boolean?
+  dataSimulacao                      String?
+  descricaoGarantiaOperacao          String?
+  codigoCarteira                     String?
+  descricaoCarteira                  String?
+  valorImovel                        Float?
+  valorTotalDespesasFinanceiras      Float?
+  valorTotalFinanciamento            Float?
+  valorIof                           Float?
+  indexador                          String?
+  valorRdm                           Float?
+  valorTaxaNominal                   Float?
+  valorTag                           Float?
+  cpf                                String?
+  id_usuario                         String?
+  nome                               String?
+
+  @@schema("public")
+}
+
+model tb_simulacao_inter {
+  id                   BigInt   @id @default(autoincrement())
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  data_nasc            String?
+  tipoProduto          String?
+  valorEntrada         Float?
+  quantidadeParcelas   BigInt?
+  valorSolicitado      Float?
+  valorImovel          Float?
+  categoriaImovel      String?
+  estadoImovel         String?
+  produtoCompleto      String?
+  taxaRegex            Float?
+  valorPrimeiraParcela Float?
+  valorUltimaParcela   Float?
+  valorTotal           Float?
+  totalCet             Float?
+  totalCesh            Float?
+  sistemaAmortizacao   String?
+  despesas             Float?
+  despesasRegistro     Float?
+  percentualIof        Float?
+  percentualCet        Float?
+  percentualCesh       Float?
+  urlEvolucaoTeorica   String?
+  rendaSugerida        Float?
+  cpf                  String?
+  id_usuario           BigInt?
+
+  @@schema("public")
+}
+
+model tb_simulacoes_integradas {
+  id                         BigInt   @id @default(autoincrement())
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  nome_cliente               String?
+  valor_imovel               String?
+  cpf                        String?
+  id_usuario                 String?
+  credito_solicitado         String?
+  prazo                      String?
+  renda_necessaria_itau      String?
+  primeira_parcela_itau      Float?
+  ultima_parcela_itau        Float?
+  taxa_de_juros_itau         String?
+  CET_itau                   String?
+  renda_necessaria_santander String?
+  primeira_parcela_santander Float?
+  ultima_parcela_santander   Float?
+  taxa_de_juros_santander    String?
+  CET_santander              String?
+  renda_necessaria_bradesco  String?
+  primeira_parcela_bradesco  Float?
+  ultima_parcela_bradesco    Float?
+  taxa_de_juros_bradesco     String?
+  CET_bradesco               String?
+  APP                        Boolean?
+  renda_necessaria_inter     String?
+  primeira_parcela_inter     Float?
+  ultima_parcela_inter       Float?
+  taxa_de_juros_inter        String?
+  cet_inter                  String?
+
+  @@schema("public")
+}
+
+model tb_situacao {
+  id         BigInt      @id @default(autoincrement())
+  created_at DateTime    @default(now()) @db.Timestamptz(6)
+  situacao   String?
+  id_usuario BigInt?
+  tb_depara  tb_depara[]
+
+  @@schema("public")
+}
+
+model tb_status {
+  id          BigInt      @id @default(autoincrement())
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  status      String
+  id_usuario  BigInt?
+  nome_status String?
+  tb_depara   tb_depara[]
+
+  @@schema("public")
+}
+
+model tb_status_inc {
+  id               BigInt   @id @default(autoincrement())
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  status           String?
+  id_usuario       BigInt?
+  status_enumerado String?
+
+  @@schema("public")
+}
+
+model tb_substatus {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  sub_status String?
+
+  @@schema("public")
+}
+
+model tb_tickets {
+  id               BigInt   @id @default(autoincrement())
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  local_erro       String?
+  importancia_erro BigInt?
+  assunto          String?
+  descricao        String?
+  atribuicao       String?
+  status_ticket    String   @default("Sem atuação")
+  email_criacao    String?
+  nome_criacao     String?
+  tela             String?
+
+  @@schema("public")
+}
+
+model tp_endereco_santander {
+  id              BigInt   @id @default(autoincrement())
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  id_key          String?
+  key_description String?
+
+  @@schema("public")
+}
+
+model tp_logradouro {
+  id               BigInt   @id @default(autoincrement())
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  id_santander     BigInt?
+  tp_logradouro    String?
+  ds_tp_logradouro String?
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model user_roles {
+  id         BigInt   @id @default(autoincrement())
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user_id    String   @db.Uuid
+  user_role  BigInt
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "public_user_roles_user_id_fkey")
+  Cargos     Cargos   @relation(fields: [user_role], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "public_user_roles_user_role_fkey")
+
+  @@schema("public")
+}
+
+model usuarios {
+  id                String   @id(map: "Users_pkey") @db.Uuid
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  nome              String
+  id_cargo          BigInt
+  id_lider          BigInt
+  cpf               String
+  email             String
+  telefone          String
+  certificado       Boolean?
+  data_certificado  String?
+  id_consultor_most BigInt   @unique(map: "Users_id_consultor_most_key") @default(autoincrement())
+  nome_itau         String?
+  id_santander      BigInt?
+  id_parceiro       BigInt?
+  usuario_criacao   BigInt?
+  id_incorporador   BigInt?
+  Cargos            Cargos   @relation(fields: [id_cargo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "public_Users_id_cargo_fkey")
+  users             users    @relation(fields: [id], references: [id], onDelete: Cascade, map: "public_Users_id_fkey")
+
+  @@schema("public")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model buckets {
+  id                         String                       @id
+  name                       String                       @unique(map: "bname")
+  owner                      String?                      @db.Uuid
+  created_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                    @default(now()) @db.Timestamptz(6)
+  public                     Boolean?                     @default(false)
+  avif_autodetection         Boolean?                     @default(false)
+  file_size_limit            BigInt?
+  allowed_mime_types         String[]
+  owner_id                   String?
+  objects                    objects[]
+  s3_multipart_uploads       s3_multipart_uploads[]
+  s3_multipart_uploads_parts s3_multipart_uploads_parts[]
+
+  @@schema("storage")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model migrations {
+  id          Int       @id
+  name        String    @unique @db.VarChar(100)
+  hash        String    @db.VarChar(40)
+  executed_at DateTime? @default(now()) @db.Timestamp(6)
+
+  @@schema("storage")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model objects {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucket_id        String?
+  name             String?
+  owner            String?   @db.Uuid
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+  last_accessed_at DateTime? @default(now()) @db.Timestamptz(6)
+  metadata         Json?
+  path_tokens      String[]  @default(dbgenerated("string_to_array(name, '/'::text)"))
+  version          String?
+  owner_id         String?
+  user_metadata    Json?
+  buckets          buckets?  @relation(fields: [bucket_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "objects_bucketId_fkey")
+
+  @@unique([bucket_id, name], map: "bucketid_objname")
+  @@index([bucket_id, name], map: "idx_objects_bucket_id_name")
+  @@index([name], map: "name_prefix_search")
+  @@schema("storage")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model s3_multipart_uploads {
+  id                         String                       @id
+  in_progress_size           BigInt                       @default(0)
+  upload_signature           String
+  bucket_id                  String
+  key                        String
+  version                    String
+  owner_id                   String?
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  user_metadata              Json?
+  buckets                    buckets                      @relation(fields: [bucket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  s3_multipart_uploads_parts s3_multipart_uploads_parts[]
+
+  @@index([bucket_id, key, created_at], map: "idx_multipart_uploads_list")
+  @@schema("storage")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model s3_multipart_uploads_parts {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  upload_id            String
+  size                 BigInt               @default(0)
+  part_number          Int
+  bucket_id            String
+  key                  String
+  etag                 String
+  owner_id             String?
+  version              String
+  created_at           DateTime             @default(now()) @db.Timestamptz(6)
+  buckets              buckets              @relation(fields: [bucket_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  s3_multipart_uploads s3_multipart_uploads @relation(fields: [upload_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@schema("storage")
+}
+
+enum aal_level {
+  aal1
+  aal2
+  aal3
+
+  @@schema("auth")
+}
+
+enum code_challenge_method {
+  s256
+  plain
+
+  @@schema("auth")
+}
+
+enum factor_status {
+  unverified
+  verified
+
+  @@schema("auth")
+}
+
+enum factor_type {
+  totp
+  webauthn
+  phone
+
+  @@schema("auth")
+}
+
+enum one_time_token_type {
+  confirmation_token
+  reauthentication_token
+  recovery_token
+  email_change_token_new
+  email_change_token_current
+  phone_change_token
+
+  @@schema("auth")
+}
