@@ -1,7 +1,7 @@
 export interface CreditSimulation {
   customerBirthDate: string
   customerName: string
-  custumerCpf: string
+  customerCpf: string
   propertyValue: number
   financingValue: number
   installments: number
