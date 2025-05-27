@@ -1,8 +1,8 @@
 import { IBankApiService } from '@infra/interfaces'
 import { ItauAuthService } from './auth/itauAuthService'
-import { ItauHttpClient } from './client/itauHtppClient'
+import { ItauHttpClient } from './client/ItauHttp.client'
 import { BankResponseSimulation, CreditSimulation } from '@domain/entities'
-import { ItauPayloadMapper } from './mappers/itauPayloadMappers'
+import { ItauPayloadMapper } from './mappers/ItauPayload.mapper'
 
 export class ItauApiService implements IBankApiService {
   private readonly authService: ItauAuthService
@@ -12,6 +12,11 @@ export class ItauApiService implements IBankApiService {
     this.authService = new ItauAuthService()
     this.httpClient = new ItauHttpClient()
   }
+
+  getBankName(): string {
+    return 'Itaú'
+  }
+
   async simulationCredit(
     simulation: CreditSimulation
   ): Promise<BankResponseSimulation> {
@@ -22,23 +27,15 @@ export class ItauApiService implements IBankApiService {
         itauPayload,
         accessToken
       )
-      return {
-        financingValue: itauResponse.property_price,
-        installments: itauResponse.period,
-        firstInstallment: itauResponse.first_installment,
-        lastInstallment: itauResponse.last_installment,
-        interestRate: itauResponse.interest_rate,
-        loanAmount: itauResponse.loan_amount,
-        amortizationType: itauResponse.amortization_type,
-        ltv: itauResponse.ltv
-      }
+      const internApiResponse =
+        ItauResponseMapper.convertToInternApiResponse(itauResponse)
+
+      return internApiResponse
     } catch (error) {
       console.error(`Error in ${this.getBankName()} simulation:`, error)
-      throw error
+      throw new Error(
+        `${this.getBankName()} simulation failed: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
-  }
-
-  getBankName(): string {
-    return 'Itaú'
   }
 }

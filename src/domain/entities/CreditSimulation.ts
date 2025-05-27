@@ -9,4 +9,5 @@ export interface CreditSimulation {
   propertyType: string
   financingRate: string
   amortizationType: string
+  userId: number
 }

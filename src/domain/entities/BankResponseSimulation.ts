@@ -1,4 +1,6 @@
 export interface BankResponseSimulation {
+  simulationId: string
+  bankName: string
   financingValue: number
   installments: number
   firstInstallment: number
@@ -7,4 +9,6 @@ export interface BankResponseSimulation {
   loanAmount: number
   amortizationType: string
   ltv: number
+  cet: number
+  uuidUser?: string
 }
