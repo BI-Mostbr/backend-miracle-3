@@ -3,6 +3,7 @@ import { ItauAuthService } from './auth/itauAuthService'
 import { ItauHttpClient } from './client/ItauHttp.client'
 import { BankResponseSimulation, CreditSimulation } from '@domain/entities'
 import { ItauPayloadMapper } from './mappers/ItauPayload.mapper'
+import { ItauResponseMapper } from './mappers/itauResponse.mapper'
 
 export class ItauApiService implements IBankApiService {
   private readonly authService: ItauAuthService

@@ -1,5 +1,5 @@
 import { SimulateCreditUseCase } from '@application/use-cases/SimulateCreditUseCases'
-import { ItauApiService } from '@domain/services/itau/ItauApiService.type'
+import { ItauApiService } from '@domain/services/itau/ItauApiService'
 import { CreditSimulationController } from '@infra/controllers/CreditSimulation.controller'
 import { IBankApiService } from '@infra/interfaces'
 
@@ -7,7 +7,8 @@ export class CreditSimulationFactory {
   static createBankServices(): IBankApiService[] {
     const services: IBankApiService[] = []
     try {
-      services.push(new ItauApiService())
+      const itauService = new ItauApiService()
+      services.push(itauService)
     } catch (error) {
       console.error('Error creating default Itaú service:', error)
       console.error('Check your environment variables and API credentials')
@@ -45,10 +46,10 @@ export class CreditSimulationFactory {
   }
 
   static createSpecificBankService(bankName: string): IBankApiService {
-    const bankNameUpper = bankName.toUpperCase()
+    const bankNameUpper = bankName.toLowerCase()
     switch (bankNameUpper) {
-      case 'ITAU':
-      case 'ITAÚ':
+      case 'itau':
+      case 'itaú':
         return new ItauApiService()
       default:
         throw new Error(`Unsupported bank: ${bankName}`)

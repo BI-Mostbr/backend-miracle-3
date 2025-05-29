@@ -4,7 +4,6 @@ import { IItauSimulationData } from './ItauSimulationData.interface'
 export interface IItauSimulationRepository {
   save(
     simulation: CreditSimulation,
-    bankResponse: BankResponseSimulation,
-    userId: string
+    bankResponse: BankResponseSimulation
   ): Promise<IItauSimulationData>
 }
