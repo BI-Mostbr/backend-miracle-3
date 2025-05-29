@@ -67,7 +67,7 @@ app.get('/health', async (req, res) => {
 })
 
 // 404 - Rota não encontrada
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: 'Endpoint não encontrado',
@@ -78,7 +78,7 @@ app.use('*', (req, res) => {
 app.use(ValidationMiddleware.errorHandler())
 
 const gracefulShutdown = async (signal: string) => {
-  console.log(`\n🔄 Graceful shutdown iniciado por ${signal}...`)
+  console.log(`Graceful shutdown iniciado por ${signal}...`)
 
   try {
     await RepositoryFactory.disconnect()
