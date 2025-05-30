@@ -11,7 +11,10 @@ export const CreditSimulationRequestSchema = z
       .string()
       .min(2, 'Nome deve ter pelo menos 2 caracteres')
       .max(100, 'Nome deve ter no máximo 100 caracteres'),
-
+    propertyType: z
+      .string()
+      .min(1, 'Tipo de imóvel é obrigatório')
+      .max(50, 'Tipo de imóvel deve ter no máximo 50 caracteres'),
     customerBirthDate: z.string(),
     productType: z
       .string()

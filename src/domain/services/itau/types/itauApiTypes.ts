@@ -1,22 +1,19 @@
 export interface ItauApiPayload {
-  product: string
-  property_type: string
-  property_price: number
-  down_payment: number
-  fgts_value: number
-  insurance_company: string
-  amortization_system: string
-  fee_type: string
+  productType: string
+  propertyType: string
+  propertyPrice: number
+  amortizationType: string
+  feeType: string
+  insuranceType: string
   period: number
-  include_registry_costs: boolean
-  include_property_evaluation: boolean
-  registry_costs_percentage: number
+  downPayment: number
+  includeRegistryCosts: boolean
+  registryCostsPercentage: number
   proponents: Array<{
-    birth_date: string
+    document: string
+    birthDate: string
     income: number
-    document_number: string
-  }>
-  offers: Array<{
-    id_offer: number
+    zipCode: string
+    composeIncome: boolean
   }>
 }

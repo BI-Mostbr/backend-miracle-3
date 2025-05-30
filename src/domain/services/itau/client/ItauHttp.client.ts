@@ -6,36 +6,22 @@ import { ItauApiPayload } from '../types/itauApiTypes'
 
 export class ItauHttpClient {
   private readonly axiosInstance: AxiosInstance
-  private readonly apiKey: string
-  private readonly appId: string
+  private readonly baseUrl: string
 
   constructor() {
-    const baseURL = process.env.ITAU_API_URL!
-    this.apiKey = process.env.ITAU_API_KEY!
-    this.appId = process.env.ITAU_APP_ID!
+    this.baseUrl = process.env.ITAU_API_URL!
+    this.axiosInstance = this.createAxiosInstanceWithCerts()
 
-    // Criar instância com certificados
-    this.axiosInstance = this.createAxiosInstanceWithCerts(baseURL)
+    console.log('🌐 ItauHttpClient inicializado (Bearer Token Auth)')
+    console.log(`   Base URL: ${this.baseUrl}`)
 
-    console.log(
-      '🌐 ItauHttpClient inicializado - Headers exatos da documentação'
-    )
-    console.log(`   Base URL: ${baseURL}`)
-    console.log(
-      `   API Key: ${this.apiKey ? `${this.apiKey.substring(0, 8)}...` : '❌ Não encontrado'}`
-    )
-    console.log(
-      `   App ID: ${this.appId ? '✅ Definido' : '❌ Não encontrado'}`
-    )
-
-    // Validar API Key
-    if (!this.apiKey) {
-      console.error('❌ ITAU_API_KEY não configurado!')
-      throw new Error('ITAU_API_KEY é obrigatório')
+    if (!this.baseUrl) {
+      console.error('❌ ITAU_API_URL não configurado!')
+      throw new Error('ITAU_API_URL é obrigatório')
     }
   }
 
-  private createAxiosInstanceWithCerts(baseURL: string): AxiosInstance {
+  private createAxiosInstanceWithCerts(): AxiosInstance {
     try {
       // Caminhos dos certificados
       const certsPath = path.join(process.cwd(), 'certs', 'itau')
@@ -46,16 +32,17 @@ export class ItauHttpClient {
       const keyExists = fs.existsSync(keyPath)
       const certExists = fs.existsSync(certPath)
 
-      console.log('🔒 Configurando certificados:')
+      console.log('🔒 Configurando certificados para HTTP client:')
       console.log(`   Key: ${keyExists ? '✅' : '❌'} (${keyPath})`)
       console.log(`   Cert: ${certExists ? '✅' : '❌'} (${certPath})`)
 
       // Configuração base do axios
       const config: any = {
-        baseURL,
+        baseURL: this.baseUrl,
         timeout: 30000,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'Itau-API-Client/1.0'
         }
       }
 
@@ -63,6 +50,7 @@ export class ItauHttpClient {
       if (keyExists && certExists) {
         const key = fs.readFileSync(keyPath, 'utf8')
         const cert = fs.readFileSync(certPath, 'utf8')
+
         const httpsAgent = new https.Agent({
           key: key,
           cert: cert,
@@ -81,10 +69,11 @@ export class ItauHttpClient {
 
       // Fallback sem certificados
       return axios.create({
-        baseURL,
+        baseURL: this.baseUrl,
         timeout: 30000,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'User-Agent': 'Itau-API-Client/1.0'
         }
       })
     }
@@ -97,20 +86,29 @@ export class ItauHttpClient {
     const flowId = this.generateFlowId()
     const correlationId = this.generateCorrelationId()
 
-    console.log('📤 Enviando requisição com headers EXATOS da documentação...')
-    console.log(`   API Key: ${accessToken.substring(0, 8)}...`)
+    console.log('📤 Enviando simulação com Bearer Token...')
 
-    // Headers EXATOS conforme a documentação mostrada
+    // Headers com Bearer Token authentication
     const headers = {
-      'Content-Type': 'application/json', // Obrigatório
-      'x-itau-apikey': accessToken, // Obrigatório
-      'x-itau-correlationID': correlationId, // Obrigatório
-      'x-itau-flowID': flowId // Obrigatório
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'x-itau-correlationID': correlationId,
+      'x-itau-flowID': flowId
     }
 
-    console.log('📋 Headers (conforme documentação):')
-    console.log(JSON.stringify(headers, null, 2))
-    console.log('📦 Payload:')
+    console.log('📋 Headers da requisição:')
+    console.log(
+      JSON.stringify(
+        {
+          ...headers,
+          Authorization: `Bearer ${accessToken.substring(0, 20)}...` // Mascarar token nos logs
+        },
+        null,
+        2
+      )
+    )
+
+    console.log('📦 Payload da simulação:')
     console.log(JSON.stringify(payload, null, 2))
 
     try {
@@ -118,121 +116,183 @@ export class ItauHttpClient {
         headers
       })
 
-      console.log('✅ SUCESSO! Resposta recebida da API do Itaú')
+      console.log('✅ SUCESSO! Simulação processada pelo Itaú')
       console.log(`   Status: ${response.status}`)
       console.log(`   Headers de resposta:`)
       console.log(JSON.stringify(response.headers, null, 2))
-      console.log(`   Data:`)
+      console.log(`   Dados da resposta:`)
       console.log(JSON.stringify(response.data, null, 2))
 
       return response.data
     } catch (error) {
-      console.error('❌ Erro na API do Itaú:')
+      console.error('❌ Erro na simulação do Itaú:')
 
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
-        const message = error.response?.data?.message || error.message
         const data = error.response?.data
         const responseHeaders = error.response?.headers
 
         console.error(`   Status: ${status}`)
-        console.error(`   Message: ${message}`)
         console.error(`   Response Headers:`)
         console.error(JSON.stringify(responseHeaders, null, 2))
-        console.error(`   Full Response:`)
+        console.error(`   Response Data:`)
         console.error(JSON.stringify(data, null, 2))
 
-        // Análise detalhada do erro
+        // Análise específica por status de erro
         if (status === 401) {
-          console.error('\n💡 ANÁLISE DO ERRO 401:')
-          console.error('   1. ✅ Headers corretos conforme documentação')
+          console.error('\n💡 ERRO 401 - Token inválido:')
+          console.error('   - Bearer token pode estar expirado')
+          console.error('   - Bearer token pode estar inválido')
           console.error(
-            '   2. ❓ API Key pode estar inválida, expirada ou não autorizada'
+            '   - Bearer token pode não ter as permissões necessárias'
           )
-          console.error('   3. ❓ Certificados podem não estar autorizados')
-          console.error(
-            '   4. ❓ Ambiente pode estar incorreto (sandbox vs produção)'
-          )
+          console.error('   - Tente renovar o token de autenticação')
 
-          console.error('\n🔍 VERIFICAÇÕES:')
-          console.error(
-            `   - API Key usada: ${accessToken.substring(0, 12)}...`
+          throw new Error(
+            'Bearer token inválido ou expirado - renovação necessária'
           )
+        } else if (status === 400) {
+          console.error('\n💡 ERRO 400 - Dados da simulação inválidos:')
           console.error(
-            `   - URL chamada: ${this.axiosInstance.defaults.baseURL}/simulations`
+            '   - Verifique se todos os campos obrigatórios estão presentes'
           )
+          console.error('   - Verifique se os tipos de dados estão corretos')
           console.error(
-            `   - Certificados: ${this.hasCertificates() ? 'Configurados' : 'Não configurados'}`
+            '   - Verifique se os valores estão dentro dos limites permitidos'
           )
 
           throw new Error(
-            'API Key inválida, expirada ou não autorizada para este recurso'
+            `Dados inválidos na simulação: ${data?.message || data?.error_description || 'Verifique os dados enviados'}`
           )
-        } else if (status === 400) {
-          console.error('\n💡 Erro 400 - Dados da requisição inválidos')
-          console.error('   Verifique se o payload está no formato correto')
-          throw new Error(`Dados inválidos na simulação: ${message}`)
         } else if (status === 403) {
-          console.error('\n💡 Erro 403 - Sem permissão')
-          throw new Error('API Key não tem permissão para este recurso')
+          console.error('\n💡 ERRO 403 - Acesso negado:')
+          console.error('   - Token não tem permissão para simular crédito')
+          console.error(
+            '   - Cliente pode não estar autorizado para este produto'
+          )
+
+          throw new Error('Token não tem permissão para simulação de crédito')
         } else if (status === 422) {
-          console.error('\n💡 Erro 422 - Dados não processáveis')
-          throw new Error(`Dados não processáveis: ${message}`)
+          console.error('\n💡 ERRO 422 - Dados não processáveis:')
+          console.error(
+            '   - Dados estão corretos mas não podem ser processados'
+          )
+          console.error('   - Pode haver restrições de negócio específicas')
+
+          throw new Error(
+            `Dados não processáveis: ${data?.message || data?.error_description || 'Verifique as regras de negócio'}`
+          )
+        } else if (status === 429) {
+          console.error('\n💡 ERRO 429 - Rate limit excedido:')
+          console.error('   - Muitas requisições em pouco tempo')
+          console.error('   - Aguarde antes de tentar novamente')
+
+          throw new Error(
+            'Rate limit excedido - aguarde antes de tentar novamente'
+          )
         } else if (status === 500) {
-          console.error('\n💡 Erro 500 - Problema interno do Itaú')
-          throw new Error(`Erro interno do Itaú: ${message}`)
+          console.error('\n💡 ERRO 500 - Erro interno do Itaú:')
+          console.error('   - Problema no servidor do Itaú')
+          console.error('   - Tente novamente em alguns minutos')
+
+          throw new Error(
+            'Erro interno do servidor do Itaú - tente novamente mais tarde'
+          )
+        } else if (status === 503) {
+          console.error('\n💡 ERRO 503 - Serviço indisponível:')
+          console.error('   - API do Itaú temporariamente indisponível')
+          console.error('   - Manutenção programada ou sobrecarga')
+
+          throw new Error('Serviço do Itaú temporariamente indisponível')
         }
 
-        throw new Error(`Itaú API error (${status}): ${message}`)
+        // Erro genérico
+        throw new Error(
+          `Erro na API do Itaú (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+        )
       }
 
+      // Erro de rede
+      console.error(
+        '   Erro de rede:',
+        error instanceof Error ? error.message : String(error)
+      )
+      throw new Error(
+        `Erro de rede na comunicação com o Itaú: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
+  }
+
+  // Método para fazer requisições autenticadas genéricas
+  async makeAuthenticatedRequest(
+    endpoint: string,
+    payload: any,
+    accessToken: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST'
+  ): Promise<any> {
+    const flowId = this.generateFlowId()
+    const correlationId = this.generateCorrelationId()
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'x-itau-correlationID': correlationId,
+      'x-itau-flowID': flowId
+    }
+
+    console.log(`📤 Fazendo requisição ${method} para ${endpoint}`)
+
+    try {
+      let response
+      switch (method) {
+        case 'GET':
+          response = await this.axiosInstance.get(endpoint, { headers })
+          break
+        case 'POST':
+          response = await this.axiosInstance.post(endpoint, payload, {
+            headers
+          })
+          break
+        case 'PUT':
+          response = await this.axiosInstance.put(endpoint, payload, {
+            headers
+          })
+          break
+        case 'DELETE':
+          response = await this.axiosInstance.delete(endpoint, { headers })
+          break
+      }
+
+      console.log(`✅ ${method} ${endpoint} - Status: ${response.status}`)
+      return response.data
+    } catch (error) {
+      console.error(`❌ Erro em ${method} ${endpoint}:`, error)
       throw error
     }
   }
 
   private generateFlowId(): string {
-    // Gerar ID único para o fluxo - formato simples e limpo
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    return `flow-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
 
   private generateCorrelationId(): string {
-    // Gerar ID único para correlação - formato simples e limpo
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+    return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
 
   // Método para debug completo
-  public debugComplete(): void {
-    console.log('\n🔍 DEBUG COMPLETO:')
-    console.log('=================')
-    console.log(`📍 Base URL: ${this.axiosInstance.defaults.baseURL}`)
-    console.log(
-      `🔑 API Key: ${this.apiKey ? `${this.apiKey.substring(0, 12)}...` : 'NÃO DEFINIDO'}`
-    )
+  public debugHttpClient(): void {
+    console.log('\n🔍 DEBUG HTTP CLIENT:')
+    console.log('=====================')
+    console.log(`📍 Base URL: ${this.baseUrl}`)
     console.log(
       `📜 Certificados: ${this.hasCertificates() ? 'Configurados' : 'Não configurados'}`
     )
     console.log(`⏱️  Timeout: ${this.axiosInstance.defaults.timeout}ms`)
     console.log(`📋 Headers padrão:`)
     console.log(JSON.stringify(this.axiosInstance.defaults.headers, null, 2))
-
-    console.log('\n🎯 Próximos headers que serão enviados:')
-    console.log(
-      JSON.stringify(
-        {
-          'Content-Type': 'application/json',
-          'x-itau-apikey': this.apiKey
-            ? `${this.apiKey.substring(0, 12)}...`
-            : 'NÃO DEFINIDO',
-          'x-itau-correlationID': 'será_gerado_automaticamente',
-          'x-itau-flowID': 'será_gerado_automaticamente'
-        },
-        null,
-        2
-      )
-    )
   }
 
-  // Método para verificar se está configurado com certificados
+  // Método para verificar se certificados estão configurados
   public hasCertificates(): boolean {
     const certsPath = path.join(process.cwd(), 'certs', 'itau')
     const keyPath = path.join(certsPath, 'NOVO_CERTIFICADO.key')
@@ -241,8 +301,23 @@ export class ItauHttpClient {
     return fs.existsSync(keyPath) && fs.existsSync(certPath)
   }
 
-  // Método para verificar se API Key está configurada
-  public hasApiKey(): boolean {
-    return !!this.apiKey
+  // Método para verificar saúde da conexão (sem autenticação)
+  public async healthCheck(): Promise<boolean> {
+    try {
+      // Tentar fazer uma requisição simples para verificar conectividade
+      const response = await this.axiosInstance.get('/health', {
+        timeout: 5000,
+        validateStatus: () => true // Aceitar qualquer status para verificar conectividade
+      })
+
+      console.log(`🏥 Health check - Status: ${response.status}`)
+      return response.status < 500 // Considera saudável se não for erro de servidor
+    } catch (error) {
+      console.error(
+        '❌ Health check falhou:',
+        error instanceof Error ? error.message : String(error)
+      )
+      return false
+    }
   }
 }
