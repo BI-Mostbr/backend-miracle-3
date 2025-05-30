@@ -12,6 +12,23 @@ export const CreditSimulationRequestSchema = z
       .min(2, 'Nome deve ter pelo menos 2 caracteres')
       .max(100, 'Nome deve ter no máximo 100 caracteres'),
 
+    customerBirthDate: z.string(),
+    productType: z
+      .string()
+      .min(1, 'Tipo de produto é obrigatório')
+      .max(50, 'Tipo de produto deve ter no máximo 50 caracteres'),
+    financingRate: z
+      .string()
+      .min(1, 'Taxa de financiamento é obrigatória')
+      .max(30, 'Taxa de financiamento deve ter no máximo 30 caracteres'),
+    amortizationType: z
+      .string()
+      .min(1, 'Tipo de amortização é obrigatório')
+      .max(50, 'Tipo de amortização deve ter no máximo 50 caracteres'),
+    userId: z
+      .number()
+      .int('ID do usuário deve ser um número inteiro')
+      .positive('ID do usuário deve ser positivo'),
     propertyValue: z
       .number()
       .positive('Valor do imóvel deve ser positivo')
@@ -48,5 +65,5 @@ export const BankNameParamSchema = z.object({
   bankName: z
     .string()
     .min(1, 'Nome do banco é obrigatório')
-    .transform((name) => name.trim())
+    .transform((name) => name.trim().toLowerCase())
 })

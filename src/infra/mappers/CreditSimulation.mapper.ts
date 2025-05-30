@@ -56,7 +56,8 @@ export class CreditSimulationResponseMapper {
 
   private static formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', {
-      style: 'percent',
+      style: 'currency',
+      currency: 'BRL',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(value)
@@ -65,7 +66,7 @@ export class CreditSimulationResponseMapper {
   private static formatInterestRate(rate: number, bankName: string): string {
     switch (bankName.toLocaleLowerCase()) {
       case 'inter':
-        return `${(rate * 100).toFixed(2)}% + IPCA.`
+        return `${(rate * 100).toFixed(2)}% + IPCA a.a`
       default:
         return `${(rate * 100).toFixed(2)}% a.a`
     }

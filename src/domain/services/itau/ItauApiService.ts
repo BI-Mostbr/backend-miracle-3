@@ -15,7 +15,7 @@ export class ItauApiService implements IBankApiService {
   }
 
   getBankName(): string {
-    return 'Itaú'
+    return 'itau'
   }
 
   async simulationCredit(

@@ -13,10 +13,15 @@ export class SimulateCreditUseCase {
     if (!CreditSimulationDomainService.validateBusinessRules(simulation)) {
       throw new Error('Simulation does not meet business rules')
     }
-    const bankService = this.bankServices.find(
-      (service) =>
-        service.getBankName().toLowerCase() === bankName.toLowerCase()
-    )
+
+    const bankService = this.bankServices.find((service) => {
+      const serviceName = service.getBankName().toLowerCase().trim()
+      const matches = serviceName === bankName.toLowerCase().trim()
+      console.log(
+        `  🔎 Comparando '${serviceName}' === '${bankName}': ${matches}`
+      )
+      return matches
+    })
 
     if (!bankService) {
       throw new Error(`Bank service for ${bankName} not found`)

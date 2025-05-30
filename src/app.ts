@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import 'dotenv/config'
 import { setupSwagger } from './swagger'
 import { ValidationMiddleware } from '@infra/middlewares/Validation.middleware'
 import { createCreditSimulationRoutes } from '@infra/routes/CreditSimulation.routes'

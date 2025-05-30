@@ -92,10 +92,25 @@ export class CreditSimulationController {
    */
   async simulateWithBank(req: Request, res: Response): Promise<void> {
     try {
-      const simulation = req.body
+      const bankName = req.params.bankName?.toLowerCase()
+      const simulationData = req.body
+      const simulation = {
+        customerBirthDate: simulationData.customerBirthDate,
+        customerName: simulationData.customerName,
+        customerCpf: simulationData.customerCpf,
+        propertyValue: simulationData.propertyValue,
+        financingValue: simulationData.financingValue,
+        installments: simulationData.installments,
+        productType: simulationData.productType,
+        propertyType: simulationData.propertyType,
+        financingRate: simulationData.financingRate,
+        amortizationType: simulationData.amortizationType,
+        userId: simulationData.userId
+      }
+
       const bankResponse = await this.useCase.simulateWithBank(
         simulation,
-        'itau'
+        bankName
       )
       const frontendResponse =
         CreditSimulationResponseMapper.convertToFrontendResponse(simulation, [
