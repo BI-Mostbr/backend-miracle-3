@@ -19,22 +19,10 @@ export class ItauAuthService {
   private tokenExpiresAt: number = 0
 
   constructor() {
-    // Configurações para autenticação SigV4
     this.clientId = process.env.ITAU_CLIENT_ID!
     this.clientSecret = process.env.ITAU_CLIENT_SECRET!
-    this.authUrl = process.env.ITAU_AUTH_URL! // URL do endpoint de autenticação
-
+    this.authUrl = process.env.ITAU_AUTH_URL!
     this.axiosInstance = this.createAxiosInstanceWithCerts()
-
-    console.log('🔐 ItauAuthService inicializado (SigV4 Bearer Token)')
-    console.log(
-      `   Client ID: ${this.clientId ? `${this.clientId.substring(0, 8)}...` : '❌ Não encontrado'}`
-    )
-    console.log(
-      `   Client Secret: ${this.clientSecret ? '✅ Configurado' : '❌ Não encontrado'}`
-    )
-    console.log(`   Auth URL: ${this.authUrl || '❌ Não encontrado'}`)
-
     this.validateRequiredEnvVars()
   }
 
@@ -46,7 +34,7 @@ export class ItauAuthService {
     if (!this.authUrl) missing.push('ITAU_AUTH_URL')
 
     if (missing.length > 0) {
-      console.error('❌ Variáveis de ambiente obrigatórias não configuradas:')
+      console.error('Variáveis de ambiente obrigatórias não configuradas:')
       missing.forEach((env) => console.error(`   - ${env}`))
       throw new Error(
         `Variáveis de ambiente obrigatórias não configuradas: ${missing.join(', ')}`
@@ -59,26 +47,17 @@ export class ItauAuthService {
       const certsPath = path.join(process.cwd(), 'certs', 'itau')
       const keyPath = path.join(certsPath, 'NOVO_CERTIFICADO.key')
       const certPath = path.join(certsPath, 'Certificado_itau.crt')
-
       const keyExists = fs.existsSync(keyPath)
       const certExists = fs.existsSync(certPath)
-
-      console.log('🔒 Verificando certificados para autenticação:')
-      console.log(`   Key: ${keyExists ? '✅' : '❌'} (${keyPath})`)
-      console.log(`   Cert: ${certExists ? '✅' : '❌'} (${certPath})`)
-
       const config: any = {
         timeout: 30000,
         headers: {
           'User-Agent': 'Itau-Auth-Client/1.0'
         }
       }
-
-      // Configurar certificados se disponíveis
       if (keyExists && certExists) {
         const key = fs.readFileSync(keyPath, 'utf8')
         const cert = fs.readFileSync(certPath, 'utf8')
-
         const httpsAgent = new https.Agent({
           key: key,
           cert: cert,
@@ -86,14 +65,14 @@ export class ItauAuthService {
         })
 
         config.httpsAgent = httpsAgent
-        console.log('✅ Auth client configurado com certificados')
+        console.log('Auth client configurado com certificados')
       } else {
-        console.warn('⚠️ Auth client sem certificados')
+        console.warn('Auth client sem certificados')
       }
 
       return axios.create(config)
     } catch (error) {
-      console.error('❌ Erro ao configurar auth client:', error)
+      console.error('Erro ao configurar auth client:', error)
       return axios.create({
         timeout: 30000,
         headers: {
@@ -104,39 +83,28 @@ export class ItauAuthService {
   }
 
   async getAccessToken(): Promise<string> {
-    // Verificar se temos um token válido em cache
     if (this.cachedToken && this.isTokenValid()) {
-      console.log('🔄 Usando token em cache (ainda válido)')
+      console.log('Usando token em cache (ainda válido)')
       return this.cachedToken
     }
 
-    console.log('🔑 Solicitando novo access token...')
+    console.log('Solicitando novo access token...')
     return await this.requestNewToken()
   }
 
   private async requestNewToken(): Promise<string> {
     const flowId = this.generateFlowId()
     const correlationId = this.generateCorrelationId()
-
-    // Headers conforme especificação SigV4
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
       'x-itau-flowID': flowId,
       'x-itau-correlationID': correlationId
     }
-
-    // Body para client_credentials grant
     const bodyParams = new URLSearchParams({
       grant_type: 'client_credentials',
       client_id: this.clientId,
       client_secret: this.clientSecret
     })
-
-    console.log('📤 Enviando requisição de autenticação:')
-    console.log(`   URL: ${this.authUrl}`)
-    console.log(`   Headers:`, JSON.stringify(headers, null, 2))
-    console.log(`   Grant Type: client_credentials`)
-    console.log(`   Client ID: ${this.clientId.substring(0, 8)}...`)
 
     try {
       const response = await this.axiosInstance.post(
@@ -145,33 +113,17 @@ export class ItauAuthService {
         { headers }
       )
 
-      console.log('✅ Autenticação bem-sucedida!')
-      console.log(`   Status: ${response.status}`)
-      console.log(`   Token Type: ${response.data.token_type || 'Bearer'}`)
-      console.log(
-        `   Expires In: ${response.data.expires_in || 'N/A'} segundos`
-      )
-
       const tokenData: TokenResponse = response.data
-
       if (!tokenData.access_token) {
         throw new Error('Access token não retornado pela API de autenticação')
       }
-
-      // Cachear o token
       this.cachedToken = tokenData.access_token
-
-      // Definir expiração (com margem de segurança de 5 minutos)
       const expiresInMs = (tokenData.expires_in || 3600) * 1000
-      this.tokenExpiresAt = Date.now() + expiresInMs - 5 * 60 * 1000 // -5 min de margem
 
-      console.log(
-        `🔐 Token cacheado até: ${new Date(this.tokenExpiresAt).toISOString()}`
-      )
-
+      this.tokenExpiresAt = Date.now() + expiresInMs - 5 * 60 * 1000
       return this.cachedToken
     } catch (error) {
-      console.error('❌ Erro na autenticação SigV4:')
+      console.error('Erro na autenticação SigV4:')
 
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
@@ -180,12 +132,10 @@ export class ItauAuthService {
 
         console.error(`   Status: ${status}`)
         console.error(
-          `   Response Headers:`,
+          `Response Headers:`,
           JSON.stringify(responseHeaders, null, 2)
         )
-        console.error(`   Response Data:`, JSON.stringify(data, null, 2))
-
-        // Análise específica por status de erro
+        console.error(`Response Data:`, JSON.stringify(data, null, 2))
         if (status === 400) {
           console.error('\n💡 ERRO 400 - Bad Request:')
           console.error(
@@ -245,7 +195,6 @@ export class ItauAuthService {
     return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
 
-  // Método para forçar renovação do token
   async refreshToken(): Promise<string> {
     console.log('🔄 Forçando renovação do token...')
     this.cachedToken = null
@@ -253,12 +202,10 @@ export class ItauAuthService {
     return await this.getAccessToken()
   }
 
-  // Método para verificar se as credenciais estão configuradas
   public hasCredentials(): boolean {
     return !!(this.clientId && this.clientSecret && this.authUrl)
   }
 
-  // Método para obter informações do token atual
   public getTokenInfo(): {
     hasToken: boolean
     expiresAt: string | null
@@ -271,31 +218,5 @@ export class ItauAuthService {
         : null,
       isValid: this.isTokenValid()
     }
-  }
-
-  // Método para debug completo
-  public debugAuth(): void {
-    console.log('\n🔍 DEBUG AUTENTICAÇÃO:')
-    console.log('======================')
-    console.log(`📍 Auth URL: ${this.authUrl}`)
-    console.log(
-      `🆔 Client ID: ${this.clientId ? `${this.clientId.substring(0, 12)}...` : 'NÃO DEFINIDO'}`
-    )
-    console.log(
-      `🔐 Client Secret: ${this.clientSecret ? 'CONFIGURADO' : 'NÃO DEFINIDO'}`
-    )
-    console.log(`🎫 Token Info:`, this.getTokenInfo())
-    console.log(
-      `📜 Certificados: ${this.hasCertificates() ? 'Configurados' : 'Não configurados'}`
-    )
-  }
-
-  // Método para verificar certificados
-  private hasCertificates(): boolean {
-    const certsPath = path.join(process.cwd(), 'certs', 'itau')
-    const keyPath = path.join(certsPath, 'NOVO_CERTIFICADO.key')
-    const certPath = path.join(certsPath, 'Certificado_itau.crt')
-
-    return fs.existsSync(keyPath) && fs.existsSync(certPath)
   }
 }

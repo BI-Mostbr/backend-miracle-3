@@ -17,9 +17,6 @@ export class SimulateCreditUseCase {
     const bankService = this.bankServices.find((service) => {
       const serviceName = service.getBankName().toLowerCase().trim()
       const matches = serviceName === bankName.toLowerCase().trim()
-      console.log(
-        `  🔎 Comparando '${serviceName}' === '${bankName}': ${matches}`
-      )
       return matches
     })
 

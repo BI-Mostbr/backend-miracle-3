@@ -21,9 +21,9 @@ export class CreditSimulationDomainService {
     }
     const ltv = (simulation.financingValue / simulation.propertyValue) * 100
     if (ltv > 80) {
-      return false // LTV exceeds 80%, business rule not met
+      return false
     }
-    return true // All business rules met
+    return true
   }
   catch(error: unknown) {
     return false

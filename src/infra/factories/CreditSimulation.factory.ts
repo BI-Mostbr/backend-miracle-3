@@ -18,7 +18,7 @@ export class CreditSimulationFactory {
   }
 
   static createUseCase(): SimulateCreditUseCase {
-    console.log('🎯 Creating SimulateCreditUseCase...')
+    console.log('Creating SimulateCreditUseCase...')
     try {
       const bankServices = this.createBankServices()
       if (bankServices.length === 0) {
