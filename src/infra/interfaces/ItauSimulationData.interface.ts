@@ -9,11 +9,11 @@ export interface IItauSimulationData {
   dt_nascimento_proponente?: string
   renda_proponente?: number
   nr_doc_proponente?: string
-  valor_emprestimo?: number
+  valor_emprestimo?: number | null
   uuid_user: string
-  id_simulacao_itau?: string
-  id_usuario?: string
-  nome?: string
-  taxa_juros?: number
-  cet_anual?: number
+  id_simulacao_itau?: string | null
+  id_usuario?: string | null
+  nome?: string | null
+  taxa_juros?: number | null
+  cet_anual?: number | null
 }

@@ -35,8 +35,10 @@ export class ItauApiService implements IBankApiService {
         itauPayload,
         accessToken
       )
-      const internApiResponse =
-        ItauResponseMapper.convertToInternApiResponse(itauResponse)
+      const internApiResponse = ItauResponseMapper.convertToInternApiResponse(
+        itauResponse,
+        simulation
+      )
       return internApiResponse
     } catch (error) {
       console.error(`Erro na simulação do ${this.getBankName()}:`, error)
@@ -51,7 +53,10 @@ export class ItauApiService implements IBankApiService {
               newAccessToken
             )
             const retryInternResponse =
-              ItauResponseMapper.convertToInternApiResponse(retryResponse)
+              ItauResponseMapper.convertToInternApiResponse(
+                retryResponse,
+                simulation
+              )
             return retryInternResponse
           } catch (retryError) {
             console.error('Erro mesmo após renovação do token:', retryError)
