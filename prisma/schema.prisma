@@ -1,6 +1,5 @@
 generator client {
   provider        = "prisma-client-js"
-  output          = "../src/generated/prisma"
   previewFeatures = ["multiSchema"]
 }
 
@@ -1803,6 +1802,7 @@ model usuarios {
   id_parceiro       BigInt?
   usuario_criacao   BigInt?
   id_incorporador   BigInt?
+  ativo             Boolean?
   Cargos            Cargos   @relation(fields: [id_cargo], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "public_Users_id_cargo_fkey")
   users             users    @relation(fields: [id], references: [id], onDelete: Cascade, map: "public_Users_id_fkey")
 
