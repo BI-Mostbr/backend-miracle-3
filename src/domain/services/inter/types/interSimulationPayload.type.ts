@@ -1,14 +1,14 @@
 export interface InterSimulationPayload {
-  cliente: Array<{
+  cliente: {
     dataNascimento: string
-  }>
+  }
   tipoProduto: string
   valorEntrada: number
   quantidadeParcelas: number
   valorSolicitado: number
-  imovel: Array<{
+  imovel: {
     valor: number
     categoria: string
     estado: string
-  }>
+  }
 }
