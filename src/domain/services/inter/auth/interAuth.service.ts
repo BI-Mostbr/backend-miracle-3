@@ -13,7 +13,9 @@ export class InterAuthService {
   private readonly grantType: string
   private readonly scope: string
   private readonly authUrl: string
-  private readonly axiosInstance: AxiosInstance
+  private axiosInstance: AxiosInstance
+  private cachedToken: string | null = null
+  private tokenExpiresAt: number = 0
 
   constructor() {
     this.clientId = process.env.INTER_CLIENT_ID!
@@ -39,6 +41,13 @@ export class InterAuthService {
     }
   }
 
+  async getAccessToken(): Promise<string> {
+    if (this.cachedToken && this.isTokenValid()) {
+      return this.cachedToken
+    }
+    return this.requestNewAccessToken()
+  }
+
   private async requestNewAccessToken(): Promise<string> {
     const bodyParams = new URLSearchParams({
       client_id: this.clientId,
@@ -60,5 +69,9 @@ export class InterAuthService {
     } catch (error) {
       throw new Error(`Erro ao solicitar novo access token: ${error}`)
     }
+  }
+
+  private isTokenValid(): boolean {
+    return Date.now() < this.tokenExpiresAt
   }
 }
