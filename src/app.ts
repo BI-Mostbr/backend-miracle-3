@@ -4,8 +4,17 @@ import 'dotenv/config'
 import { setupSwagger } from './swagger'
 import { ValidationMiddleware } from '@infra/middlewares/Validation.middleware'
 import { createCreditSimulationRoutes } from '@infra/routes/CreditSimulation.routes'
+import { createPerformanceRoutes } from '@infra/routes/Performance.routes'
+import {createProposalDetailsRoutes} from '@infra/routes/ProposalDetails.routes'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { CreditSimulationFactory } from '@infra/factories/CreditSimulation.factory'
+import { PerformanceController } from '@infra/controllers/Performance.controller'
+import { PerformanceService } from '@domain/services/Performance.service'
+import { PrismaClient } from '@prisma/client'
+import { PerformanceRepository } from '@infra/repositories/Performance.repository'
+import { ProposalDetailsController } from '@infra/controllers/ProposalDetails.controller'
+import { ProposalDetailsService } from '@domain/services/ProposalDetails.service'
+import { ProposalDetailsRepository } from '@infra/repositories/ProposalDetails.repository'
 
 const app = express()
 
@@ -43,7 +52,18 @@ app.get('/', (req, res) => {
 
 const creditController = CreditSimulationFactory.createController()
 const creditRoutes = createCreditSimulationRoutes(creditController)
+const prisma = new PrismaClient()
+const repository = new PerformanceRepository(prisma)
+const proposalDetailsRepository = new ProposalDetailsRepository(prisma)
+const performanceService = new PerformanceService(repository)
+const proposalDetailsService = new ProposalDetailsService(proposalDetailsRepository)
+const desempenhoController = new PerformanceController(performanceService)
+const proposalDetailsController = new ProposalDetailsController(proposalDetailsService)
+const desempenhoRoutes = createPerformanceRoutes(desempenhoController)
+const proposalDetailsRoutes = createProposalDetailsRoutes(proposalDetailsController)
 app.use('/api/credit', creditRoutes)
+app.use('/api/performance', desempenhoRoutes)
+app.use('/api/details', proposalDetailsRoutes)
 
 app.get('/health', async (req, res) => {
   const healthCheck = {

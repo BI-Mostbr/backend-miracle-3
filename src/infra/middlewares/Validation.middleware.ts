@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express'
 import { ZodSchema, ZodError } from 'zod'
 
+export interface AuthenticatedRequest extends Request {
+  user?: any;
+}
+
 export class ValidationMiddleware {
   static validateRequest(schema: ZodSchema) {
     return (req: Request, res: Response, next: NextFunction): void => {

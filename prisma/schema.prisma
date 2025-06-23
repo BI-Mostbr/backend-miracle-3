@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["auth", "public", "storage"]
+  schemas  = ["auth", "public", "storage", "views"]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -1119,6 +1119,8 @@ model tb_empreendimento_most {
   path_inter_laudo               String?
   saldo_devedor_pj               Float?
   cnpj_spe                       String?
+  incorporadora_itau             String?
+  id_incorporadora_itau          BigInt?
   tb_incorporadora_most          tb_incorporadora_most? @relation(fields: [id_incorporadora], references: [id], onDelete: Cascade)
 
   @@schema("public")
@@ -1134,20 +1136,20 @@ model tb_faq {
 }
 
 model tb_fasePropostas_log {
-  id_faseProposta         BigInt   @id @default(autoincrement())
+  id_faseProposta         Int   @id @default(autoincrement())
   created_at              DateTime @default(now()) @db.Timestamptz(6)
-  id_cliente              BigInt?
+  id_cliente              Int?
   id_proposta             String?
-  id_de_status_most       BigInt?
-  id_de_situacao_most     BigInt?
-  id_de_status_banco      BigInt?
-  id_de_substatus_banco   BigInt?
-  id_para_status_most     BigInt?
-  id_para_situacao_most   BigInt?
-  id_para_status_banco    BigInt?
-  id_para_substatus_banco BigInt?
-  id_banco                BigInt?
-  id_usuario              BigInt?
+  id_de_status_most       Int?
+  id_de_situacao_most     Int?
+  id_de_status_banco      Int?
+  id_de_substatus_banco   Int?
+  id_para_status_most     Int?
+  id_para_situacao_most   Int?
+  id_para_status_banco    Int?
+  id_para_substatus_banco Int?
+  id_banco                Int?
+  id_usuario              Int?
   de_status_banco         String?
   para_status_banco       String?
 
@@ -1898,8 +1900,66 @@ model s3_multipart_uploads_parts {
   @@schema("storage")
 }
 
+model vw_meu_desempenho {
+  id_cliente                   Int
+  id_proposta_decisao          String?
+  id_banco_fornecedor_decisao  Int?
+  id_produto                   Int?
+  id_usuario_sub_parceiro      Int?
+  id_usuario_parceiro          Int?
+  id_consultor                 Int?
+  id_gerente                   Int?
+  id_diretor                   Int?
+  id_cargo                     Int?
+  id_parceiro                  Int?
+  id_canal                     Int?
+  id_tipo_parceiro             Int?
+  id_status                    Int?
+  id_situacao                  Int?
+  cpf_cliente                  String
+  nome_cliente                 String?
+  banco                        String?
+  produto                      String?
+  cargo                        String?
+  nome_usuario_sub_parceiro    String?
+  usuario_parceiro             String?
+  consultor                    String?
+  gerente                      String?
+  diretor                      String?
+  parceiro                     String?
+  canal                        String?
+  tipo                         String?
+  status                       String?
+  situacao                     String?
+  valor                        Float?
+  data_cadastro                String?
+  data_finalizacao             String?
+  credito_aprovado             Float?
+  taxa_juros                   Float?
+  prazo                        Int?
+  valor_imovel                 Float?
+  ltv                          Float?
+  data_cadastro_int            Int?
+  id_master                    Int?
+  row_num                      Int?
+  id_itau                      String?
+  id_santander                 Int?
+  id_bradesco                  Int?
+  id_cef                       Int?
+  id_gerente_real              Int?
+  id_parceiro_tb_cliente       Int?
+  id_situacao_juridico         Int?
+  situacao_juridico            String?
+  nome_fantasia                String?
+
+  @@map("vw_meu_desempenho")
+  @@schema("public")
+  @@id([id_cliente, cpf_cliente])
+}
+
+
 enum aal_level {
-  aal1
+aal1
   aal2
   aal3
 

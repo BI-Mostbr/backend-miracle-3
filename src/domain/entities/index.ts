@@ -1,2 +1,4 @@
 export { CreditSimulation } from './CreditSimulation'
 export { BankResponseSimulation } from './BankResponseSimulation'
+export { Performance } from './Performance'
+export { ProposalDetails, ProposalDetailsResponse } from './ProposalDetails'
