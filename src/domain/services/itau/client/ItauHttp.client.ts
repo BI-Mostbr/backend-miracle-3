@@ -12,7 +12,7 @@ export class ItauHttpClient {
     this.baseUrl = process.env.ITAU_API_URL!
     this.axiosInstance = this.createAxiosInstanceWithCerts()
     if (!this.baseUrl) {
-      console.error('❌ ITAU_API_URL não configurado!')
+      console.error('ITAU_API_URL não configurado!')
       throw new Error('ITAU_API_URL é obrigatório')
     }
   }
@@ -47,7 +47,7 @@ export class ItauHttpClient {
       }
       return axios.create(config)
     } catch (error) {
-      console.error('❌ Erro ao configurar HTTP client:', error)
+      console.error('Erro ao configurar HTTP client:', error)
 
       return axios.create({
         baseURL: this.baseUrl,
