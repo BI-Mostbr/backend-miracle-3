@@ -1,4 +1,5 @@
 import { SimulateCreditUseCase } from '@application/use-cases/SimulateCreditUseCases'
+import { InterApiService } from '@domain/services/inter/InterApiService'
 import { ItauApiService } from '@domain/services/itau/ItauApiService'
 import { CreditSimulationController } from '@infra/controllers/CreditSimulation.controller'
 import { IBankApiService } from '@infra/interfaces'
@@ -55,8 +56,9 @@ export class CreditSimulationFactory {
     const bankNameLower = bankName.toLowerCase()
     switch (bankNameLower) {
       case 'itau':
-      case 'itaú':
         return new ItauApiService()
+      case 'inter':
+        return new InterApiService()
       default:
         throw new Error(`Unsupported bank: ${bankName}`)
     }

@@ -3,6 +3,7 @@ import { IBankApiService } from '@infra/interfaces'
 import { InterAuthService } from './auth/interAuth.service'
 import { InterHtppClient } from './client/interHttp.client'
 import { InterPayloadMapper } from './mappers/interPayload.mapper'
+import { InterResponseMapper } from './mappers/interResponse.mapper'
 
 export class InterApiService implements IBankApiService {
   private readonly authService: InterAuthService
@@ -22,7 +23,11 @@ export class InterApiService implements IBankApiService {
         interPayload,
         accessToken
       )
-      return interResponse
+      const toDatabseResponse = InterResponseMapper.convertToInternApiResponse(
+        interResponse,
+        simulation
+      )
+      return toDatabseResponse
     } catch (error) {
       console.error(`Erro na simulação do ${this.getBankName()}:`, error)
       if (error instanceof Error) {
@@ -42,7 +47,9 @@ export class InterApiService implements IBankApiService {
           }
         }
       }
-      throw error
+      throw new Error(
+        `Erro ao simular crédito no ${this.getBankName()}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+      )
     }
   }
   getBankName(): string {

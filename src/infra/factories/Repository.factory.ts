@@ -1,3 +1,4 @@
+import { InterSimulationRepository } from '@infra/repositories/InterSimulation.repostory'
 import { ItauSimulationRepository } from '@infra/repositories/ItauSimulation.repository'
 import { PrismaClient } from '@prisma/client'
 
@@ -15,6 +16,10 @@ export class RepositoryFactory {
 
   static createItauRepository(): ItauSimulationRepository {
     return new ItauSimulationRepository(this.getPrismaClient())
+  }
+
+  static createInterRepository(): InterSimulationRepository {
+    return new InterSimulationRepository(this.getPrismaClient())
   }
 
   static async disconnect(): Promise<void> {

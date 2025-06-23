@@ -53,6 +53,9 @@ export class SimulateCreditUseCase {
         //     const bradescoRepo = RepositoryFactory.createBradescoRepository()
         //     await bradescoRepo.save(simulation, bankResponse)
         //     break;
+        case 'inter':
+          const interRepo = RepositoryFactory.createInterRepository()
+          await interRepo.save(simulation, bankResponse)
         default:
           break
       }

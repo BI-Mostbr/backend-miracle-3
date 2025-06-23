@@ -12,7 +12,6 @@ export interface BankResponseSimulation {
   amortizationType: string
   ltv: number
   uuidUser?: string
-  userId?: string
 
   bankSpecificData?: {
     santander?: {
@@ -37,6 +36,35 @@ export interface BankResponseSimulation {
       descricao_carteira?: string
       valor_iof?: number
       indexador?: string
+    }
+
+    inter?: {
+      produto?: string
+      valorTotal?: number
+      totalCet?: number
+      totalCesh?: number
+      despesas?: number
+      despesasRegistro?: number
+      despesasAvaliacao?: number
+      percentualIof?: number
+      percentualCesh?: number
+      urlEvolucaoTeorica: string
+      rendaSugerida?: number
+      parcelas?: Array<{
+        noParcela: number
+        valor: number
+        valorJuros: number
+        valorAmortizacao: number
+        balancoDebito: number
+        valorIof: number
+        valorIofNormal: number
+        valorIofAdicional: number
+        valorSeguro: number
+        valorMip: number
+        valorDfi: number
+        taxaImpostoAdministrativo: number
+        pagarAte: string
+      }>
     }
   }
 }
