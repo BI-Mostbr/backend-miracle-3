@@ -51,7 +51,7 @@ export class ItauApiService implements IBankApiService {
             const retryResponse = await this.httpClient.simulateCredit(
               itauPayload,
               newAccessToken
-            )
+            ) 
             const retryInternResponse =
               ItauResponseMapper.convertToInternApiResponse(
                 retryResponse,

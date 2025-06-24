@@ -1,46 +1,46 @@
 export interface ISantanderSimulationData {
   id?: bigint
   created_at?: Date
-  id_santander?: string
-  id_santander_decript?: string
-  produto?: string
-  valor_imovel?: number
-  fgts?: number
-  valor_solicitado?: number
-  prazo_anos?: bigint
-  prazo_meses?: bigint
-  valor_minimo_solicitado?: number
-  valor_maximo_solicitado?: number
-  valor_entrada?: number
-  valor_custas?: number
-  valor_iof?: number
-  valor_financiamento_custas?: number
-  index_tr?: string
-  tipo_carteira?: string
-  campanha?: string
-  key_campanha?: string
-  segmento?: string
-  key_segmento?: string
-  relacionamento_banco?: string
-  key_relacionamento_banco?: string
-  seguro?: string
-  key_seguro?: string
-  amortizacao?: string
-  key_amortizacao?: string
-  tipo_pagamento?: string
-  key_tipo_pagamento?: string
-  tipo_simulacao?: string
-  taxa_juros_anual?: number
-  taxa_juros_mensal?: number
-  primeira_parcela?: number
-  ultima_parcela?: number
-  cet?: number
-  cesh?: number
-  nome?: string
-  tipo_imovel?: string
-  cpf?: string
-  celular?: string
-  renda?: number
-  dt_nascimento?: string
-  id_usuario?: string
+  id_santander?: string | null
+  id_santander_decript?: string | null
+  produto?: string | null
+  valor_imovel?: number | null
+  fgts?: number | null
+  valor_solicitado?: number | null
+  prazo_anos?: bigint | null
+  prazo_meses?: bigint | null
+  valor_minimo_solicitado?: number | null
+  valor_maximo_solicitado?: number | null
+  valor_entrada?: number | null
+  valor_custas?: number | null
+  valor_iof?: number | null
+  valor_financiamento_custas?: number | null
+  index_tr?: string | null
+  tipo_carteira?: string | null
+  campanha?: string | null
+  key_campanha?: string | null
+  segmento?: string | null
+  key_segmento?: string | null
+  relacionamento_banco?: string | null
+  key_relacionamento_banco?: string | null
+  seguro?: string | null
+  key_seguro?: string | null
+  amortizacao?: string | null
+  key_amortizacao?: string | null
+  tipo_pagamento?: string | null
+  key_tipo_pagamento?: string | null
+  tipo_simulacao?: string | null
+  taxa_juros_anual?: number | null
+  taxa_juros_mensal?: number | null
+  primeira_parcela?: number | null
+  ultima_parcela?: number | null
+  cet?: number | null
+  cesh?: number | null
+  nome?: string | null
+  tipo_imovel?: string | null
+  cpf?: string | null
+  celular?: string | null
+  renda?: number | null
+  dt_nascimento?: string | null
+  id_usuario?: string | null
 }

@@ -15,15 +15,43 @@ export interface BankResponseSimulation {
 
   bankSpecificData?: {
     santander?: {
-      id_santander?: string
+      id_santander_decript?: string
+      produto?: string
+      fgts?: number
       prazo_anos?: number
-      prazo_meses?: number
+      valor_minimo_solicitado?: number
+      valor_maximo_solicitado?: number
       valor_custas?: number
       valor_iof?: number
+      valor_financiamento_custas?: number
+      index_tr?: string
+      tipo_carteira?: string
+      campanha?: string
+      key_campanha?: string
+      segmento?: string
+      key_segmento?: string
+      relacionamento_banco?: string
+      key_relacionamento_banco?: string
+      seguro?: string
+      key_seguro?: string
+      amortizacao?: string
+      key_amortizacao?: string
+      tipo_pagamento?: string
+      key_tipo_pagamento?: string
+      tipo_simulacao?: string
       taxa_juros_mensal?: number
+      primeira_parcela?: number
+      ultima_parcela?: number
+      cet?: number
       cesh?: number
+      nome?: string
+      tipo_imovel?: string
+      cpf?: string
+      celular?: string
+      renda?: number
+      dt_nascimento?: string
+      id_usuario?: string
     }
-
     bradesco?: {
       tipo_sistema_amortizador?: string
       valor_renda_informada?: number
@@ -37,7 +65,6 @@ export interface BankResponseSimulation {
       valor_iof?: number
       indexador?: string
     }
-
     inter?: {
       produto?: string
       valorTotal?: number
