@@ -38,10 +38,15 @@ export class InterHtppClient {
       Authorization: `Bearer ${accessToken}`
     }
 
+    console.log(headers)
     try {
-      const response = await this.axiosInstance.post('/propostas', payload, {
-        headers
-      })
+      const response = await this.axiosInstance.post(
+        '/simulacao/calcular',
+        payload,
+        {
+          headers
+        }
+      )
       return response.data
     } catch (error) {
       throw new Error(`Error simulating inter credit: ${error}`)
