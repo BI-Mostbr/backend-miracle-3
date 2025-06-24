@@ -22,7 +22,9 @@ export class InterResponseMapper {
         interResponse.sistemaAmortizacao ||
         simulation.amortizationType ||
         'SAC',
-      ltv: (simulation.financingValue / simulation.propertyValue) * 100
+      ltv: (simulation.financingValue / simulation.propertyValue) * 100,
+
+      bankSpecificData: {}
     }
   }
 

@@ -22,6 +22,7 @@ export class RepositoryFactory {
 
   static createSantanderRepository(): ISantanderSimulationRepository {
     return new SantanderSimulationRepository(this.getPrismaClient())
+  }
   static createInterRepository(): InterSimulationRepository {
     return new InterSimulationRepository(this.getPrismaClient())
   }
