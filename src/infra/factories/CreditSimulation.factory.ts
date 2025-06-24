@@ -1,5 +1,6 @@
 import { SimulateCreditUseCase } from '@application/use-cases/SimulateCreditUseCases'
 import { ItauApiService } from '@domain/services/itau/ItauApiService'
+import { SantanderApiService } from '@domain/services/santander/SantanderApiService'
 import { CreditSimulationController } from '@infra/controllers/CreditSimulation.controller'
 import { IBankApiService } from '@infra/interfaces'
 
@@ -8,7 +9,9 @@ export class CreditSimulationFactory {
     const services: IBankApiService[] = []
     try {
       const itauService = new ItauApiService()
+      const santanderService = new SantanderApiService()
       services.push(itauService)
+      services.push(santanderService)
       console.log('Default Itaú service created successfully')
     } catch (error) {
       console.error('Error creating default Itaú service:', error)
@@ -55,8 +58,10 @@ export class CreditSimulationFactory {
     const bankNameLower = bankName.toLowerCase()
     switch (bankNameLower) {
       case 'itau':
-      case 'itaú':
         return new ItauApiService()
+      case 'santander':
+        return new SantanderApiService()
+
       default:
         throw new Error(`Unsupported bank: ${bankName}`)
     }

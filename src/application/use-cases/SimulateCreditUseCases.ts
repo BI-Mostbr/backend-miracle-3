@@ -45,10 +45,10 @@ export class SimulateCreditUseCase {
           const itauRepo = RepositoryFactory.createItauRepository()
           await itauRepo.save(simulation, bankResponse)
           break
-        // case 'santander':
-        //     const santanderRepo = RepositoryFactory.createSantanderRepository()
-        //     await santanderRepo.save(simulation, bankResponse)
-        //     break;
+        case 'santander':
+          const santanderRepo = RepositoryFactory.createSantanderRepository()
+          await santanderRepo.save(simulation, bankResponse)
+          break
         // case 'bradesco':
         //     const bradescoRepo = RepositoryFactory.createBradescoRepository()
         //     await bradescoRepo.save(simulation, bankResponse)
