@@ -1,6 +1,6 @@
 import { CreditSimulation } from '@domain/entities'
 import { SantanderApiPayload } from '../types/santanderApiTypes'
-import { produtoSantander } from 'Utils/dePara_Produto'
+import { produtoSantander } from 'Utils/mapToProduct'
 import { convertDateBrToIso } from 'Utils/convertData'
 
 export class SantanderPayloadMapper {

@@ -11,8 +11,10 @@ export class CreditSimulationFactory {
     try {
       const itauService = new ItauApiService()
       const santanderService = new SantanderApiService()
+      const interService = new InterApiService()
       services.push(itauService)
       services.push(santanderService)
+      services.push(interService)
       console.log('Default Itaú service created successfully')
     } catch (error) {
       console.error('Error creating default Itaú service:', error)
