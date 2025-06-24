@@ -93,68 +93,28 @@ export class ItauHttpClient {
         console.error(JSON.stringify(data, null, 2))
 
         if (status === 401) {
-          console.error('\n💡 ERRO 401 - Token inválido:')
-          console.error('   - Bearer token pode estar expirado')
-          console.error('   - Bearer token pode estar inválido')
-          console.error(
-            '   - Bearer token pode não ter as permissões necessárias'
-          )
-          console.error('   - Tente renovar o token de autenticação')
           throw new Error(
             'Bearer token inválido ou expirado - renovação necessária'
           )
         } else if (status === 400) {
-          console.error('\n💡 ERRO 400 - Dados da simulação inválidos:')
-          console.error(
-            '   - Verifique se todos os campos obrigatórios estão presentes'
-          )
-          console.error('   - Verifique se os tipos de dados estão corretos')
-          console.error(
-            '   - Verifique se os valores estão dentro dos limites permitidos'
-          )
-
           throw new Error(
             `Dados inválidos na simulação: ${data?.message || data?.error_description || 'Verifique os dados enviados'}`
           )
         } else if (status === 403) {
-          console.error('\n💡 ERRO 403 - Acesso negado:')
-          console.error('   - Token não tem permissão para simular crédito')
-          console.error(
-            '   - Cliente pode não estar autorizado para este produto'
-          )
-
           throw new Error('Token não tem permissão para simulação de crédito')
         } else if (status === 422) {
-          console.error('\n💡 ERRO 422 - Dados não processáveis:')
-          console.error(
-            '   - Dados estão corretos mas não podem ser processados'
-          )
-          console.error('   - Pode haver restrições de negócio específicas')
-
           throw new Error(
             `Dados não processáveis: ${data?.message || data?.error_description || 'Verifique as regras de negócio'}`
           )
         } else if (status === 429) {
-          console.error('\n💡 ERRO 429 - Rate limit excedido:')
-          console.error('   - Muitas requisições em pouco tempo')
-          console.error('   - Aguarde antes de tentar novamente')
-
           throw new Error(
             'Rate limit excedido - aguarde antes de tentar novamente'
           )
         } else if (status === 500) {
-          console.error('\n💡 ERRO 500 - Erro interno do Itaú:')
-          console.error('   - Problema no servidor do Itaú')
-          console.error('   - Tente novamente em alguns minutos')
-
           throw new Error(
             'Erro interno do servidor do Itaú - tente novamente mais tarde'
           )
         } else if (status === 503) {
-          console.error('\n💡 ERRO 503 - Serviço indisponível:')
-          console.error('   - API do Itaú temporariamente indisponível')
-          console.error('   - Manutenção programada ou sobrecarga')
-
           throw new Error('Serviço do Itaú temporariamente indisponível')
         }
         throw new Error(
