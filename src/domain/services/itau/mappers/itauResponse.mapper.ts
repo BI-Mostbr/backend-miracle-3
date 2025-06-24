@@ -18,8 +18,7 @@ export class ItauResponseMapper {
       downPayment: simulation.propertyValue - simulation.financingValue,
       amortizationType: simulation.amortizationType || 'SAC',
       ltv: (simulation.financingValue / simulation.propertyValue) * 100,
-      uuidUser: itauResponse.uuid_user,
-      userId: simulation.userId.toString()
+      uuidUser: itauResponse.uuid_user
     }
   }
 }
