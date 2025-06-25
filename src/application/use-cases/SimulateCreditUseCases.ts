@@ -25,21 +25,15 @@ export class SimulateCreditUseCase {
       throw new Error('Simulation does not meet business rules')
     }
     const bankService = this.findBankService(bankName)
-
-    // NOVO: Normaliza os parâmetros para o banco específico
     const normalizationResult =
       BankParameterNormalizer.normalizeSimulationForBank(simulation, bankName)
-
-    // NOVO: Log dos ajustes realizados
     this.logAdjustments(normalizationResult, bankName)
 
     try {
-      // Simula com os parâmetros normalizados
       const bankResponse = await bankService.simulationCredit(
         normalizationResult.normalizedSimulation
       )
 
-      // Salva a simulação
       await this.saveSimulation(
         normalizationResult.normalizedSimulation,
         bankResponse,

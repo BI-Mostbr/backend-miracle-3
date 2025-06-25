@@ -79,7 +79,7 @@ export class BankParameterNormalizer {
       minimumFinancingValue: 125000,
       loanToValueRatioLimits: {
         Residencial: { min: 25, max: 75 },
-        Comercial: { min: 85, max: 85 } // Inter comercial tem regra específica
+        Comercial: { min: 85, max: 85 }
       }
     }
   }
@@ -94,7 +94,6 @@ export class BankParameterNormalizer {
     const normalizedSimulation: CreditSimulation = { ...simulation }
     const adjustments: SimulationAdjustment[] = []
 
-    // Aplica ajustes sempre pelo valor mínimo
     this.applyInstallmentMinimumAdjustment(
       normalizedSimulation,
       simulation,
@@ -201,8 +200,6 @@ export class BankParameterNormalizer {
       const adjustedFinancingValue = bankRules.minimumFinancingValue
 
       normalizedSimulation.financingValue = adjustedFinancingValue
-
-      // Mantém a proporção LTV original ao ajustar o valor do imóvel
       const originalLoanToValueRatio =
         (originalFinancingValue / originalSimulation.propertyValue) * 100
       const adjustedPropertyValue =
