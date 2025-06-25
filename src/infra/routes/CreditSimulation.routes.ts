@@ -10,6 +10,13 @@ export function createCreditSimulationRoutes(
   controller: CreditSimulationController
 ): Router {
   const router = Router()
+
+  router.post(
+    '/simulation/all',
+    ValidationMiddleware.validateRequest(CreditSimulationRequestSchema),
+    (req, res) => controller.simulateWithAllBanks(req, res)
+  )
+
   router.post(
     '/simulation/:bankName',
     ValidationMiddleware.validateParams(BankNameParamSchema),

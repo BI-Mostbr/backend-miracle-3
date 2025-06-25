@@ -69,4 +69,11 @@ export const BankNameParamSchema = z.object({
     .string()
     .min(1, 'Nome do banco é obrigatório')
     .transform((name) => name.trim().toLowerCase())
+    .refine(
+      (name) => ['itau', 'santander', 'bradesco', 'inter'].includes(name),
+      {
+        message:
+          'Banco deve ser um dos seguintes: itau, santander, bradesco, inter'
+      }
+    )
 })
