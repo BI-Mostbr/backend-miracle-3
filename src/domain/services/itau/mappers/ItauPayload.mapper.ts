@@ -3,6 +3,7 @@ import { ItauApiPayload } from '../types/itauApiTypes'
 import { mapToPropertyTypeItau } from 'Utils/mapToProperty'
 import { mapToFeeTypeItau } from 'Utils/mapToFeeType'
 import { convertDateBrToIso } from 'Utils/convertData'
+import { productItau } from 'Utils/mapToProduct'
 
 export class ItauPayloadMapper {
   static convertToPayload(simulation: CreditSimulation): ItauApiPayload {
@@ -10,9 +11,10 @@ export class ItauPayloadMapper {
     const propertyType = mapToPropertyTypeItau(simulation.propertyType)
     const feeType = mapToFeeTypeItau(simulation.financingRate)
     const birthDate = convertDateBrToIso(simulation.customerBirthDate)
+    const productType = productItau(simulation.productType)
 
     return {
-      productType: simulation.productType,
+      productType: productType,
       propertyType: propertyType,
       propertyPrice: simulation.propertyValue,
       amortizationType: simulation.amortizationType,

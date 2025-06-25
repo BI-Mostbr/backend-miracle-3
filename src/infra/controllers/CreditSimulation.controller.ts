@@ -1,4 +1,8 @@
-import { SimulateCreditUseCase } from '@application/use-cases/SimulateCreditUseCases'
+import {
+  SimulateCreditUseCase,
+  SimulationResult
+} from '@application/use-cases/SimulateCreditUseCases'
+import { CreditSimulationWithPropertyType } from '@domain/services/BankParameterNormalizer'
 import { CreditSimulationResponseMapper } from '@infra/mappers/CreditSimulation.mapper'
 import { Request, Response } from 'express'
 
@@ -94,7 +98,59 @@ export class CreditSimulationController {
     try {
       const bankName = req.params.bankName?.toLowerCase()
       const simulationData = req.body
-      const simulation = {
+
+      const simulation: CreditSimulationWithPropertyType = {
+        customerBirthDate: simulationData.customerBirthDate,
+        customerName: simulationData.customerName,
+        customerCpf: simulationData.customerCpf,
+        propertyValue: simulationData.propertyValue,
+        financingValue: simulationData.financingValue,
+        installments: simulationData.installments,
+        productType: simulationData.productType,
+        propertyType: simulationData.propertyType, // 'residential' | 'commercial'
+        financingRate: simulationData.financingRate,
+        amortizationType: simulationData.amortizationType,
+        userId: simulationData.userId
+      }
+
+      const result: SimulationResult = await this.useCase.simulateWithBank(
+        simulation,
+        bankName
+      )
+
+      // Converte para o formato esperado pelo frontend
+      const frontendResponse =
+        CreditSimulationResponseMapper.convertToFrontendResponse(
+          result.normalizationResult.normalizedSimulation,
+          [result.bankResponse]
+        )
+
+      // Adiciona informações sobre ajustes realizados
+      const responseWithAdjustments = {
+        ...frontendResponse,
+        adjustments: {
+          hadAdjustments: result.hadAdjustments,
+          adjustmentsMade: result.normalizationResult.adjustments,
+          originalSimulation: result.normalizationResult.originalSimulation,
+          normalizedSimulation: result.normalizationResult.normalizedSimulation
+        }
+      }
+
+      res.json(responseWithAdjustments)
+    } catch (error) {
+      console.error('Error in credit simulation:', error)
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      })
+    }
+  }
+
+  async simulateWithAllBanks(req: Request, res: Response): Promise<void> {
+    try {
+      const simulationData = req.body
+
+      const simulation: CreditSimulationWithPropertyType = {
         customerBirthDate: simulationData.customerBirthDate,
         customerName: simulationData.customerName,
         customerCpf: simulationData.customerCpf,
@@ -108,18 +164,29 @@ export class CreditSimulationController {
         userId: simulationData.userId
       }
 
-      const bankResponse = await this.useCase.simulateWithBank(
-        simulation,
-        bankName
-      )
-      const frontendResponse =
-        CreditSimulationResponseMapper.convertToFrontendResponse(simulation, [
-          bankResponse
-        ])
-      res.json(frontendResponse)
-    } catch (error) {
-      console.error('Error in credit simulation:', error)
+      const results = await this.useCase.simulateWithAllBanks(simulation)
 
+      const responseData = {
+        simulacao: {
+          cpf: simulation.customerCpf,
+          nome: simulation.customerName,
+          ofertas: Object.entries(results).map(([bankName, result]) => ({
+            ...CreditSimulationResponseMapper.convertToFrontendResponse(
+              result.normalizationResult.normalizedSimulation,
+              [result.bankResponse]
+            ).simulacao.ofertas[0],
+            banco: bankName,
+            adjustments: {
+              hadAdjustments: result.hadAdjustments,
+              adjustmentsMade: result.normalizationResult.adjustments
+            }
+          }))
+        }
+      }
+
+      res.json(responseData)
+    } catch (error) {
+      console.error('Error in all banks simulation:', error)
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error instanceof Error ? error.message : 'Erro desconhecido'

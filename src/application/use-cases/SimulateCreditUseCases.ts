@@ -1,36 +1,149 @@
 import { BankResponseSimulation, CreditSimulation } from '@domain/entities'
+import {
+  BankParameterNormalizer,
+  CreditSimulationWithPropertyType,
+  NormalizedSimulation
+} from '@domain/services/BankParameterNormalizer'
 import { CreditSimulationDomainService } from '@domain/services/CreditSimulationDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { IBankApiService } from '@infra/interfaces'
 
+export interface SimulationResult {
+  bankResponse: BankResponseSimulation
+  normalizationResult: NormalizedSimulation
+  hadAdjustments: boolean
+}
 export class SimulateCreditUseCase {
   constructor(private bankServices: IBankApiService[]) {}
 
   async simulateWithBank(
-    simulation: CreditSimulation,
+    simulation: CreditSimulationWithPropertyType,
     bankName: string
-  ): Promise<BankResponseSimulation> {
+  ): Promise<SimulationResult> {
+    // Validação das regras de negócio básicas
+    if (!CreditSimulationDomainService.validateBusinessRules(simulation)) {
+      throw new Error('Simulation does not meet business rules')
+    }
+    const bankService = this.findBankService(bankName)
+
+    // NOVO: Normaliza os parâmetros para o banco específico
+    const normalizationResult =
+      BankParameterNormalizer.normalizeSimulationForBank(simulation, bankName)
+
+    // NOVO: Log dos ajustes realizados
+    this.logAdjustments(normalizationResult, bankName)
+
+    try {
+      // Simula com os parâmetros normalizados
+      const bankResponse = await bankService.simulationCredit(
+        normalizationResult.normalizedSimulation
+      )
+
+      // Salva a simulação
+      await this.saveSimulation(
+        normalizationResult.normalizedSimulation,
+        bankResponse,
+        bankName
+      )
+
+      return {
+        bankResponse,
+        normalizationResult,
+        hadAdjustments: normalizationResult.adjustments.length > 0
+      }
+    } catch (error) {
+      console.error(`Error in bank simulation: ${bankName}`, error)
+      throw error
+    }
+  }
+
+  async simulateWithAllBanks(
+    simulation: CreditSimulationWithPropertyType
+  ): Promise<Record<string, SimulationResult>> {
     if (!CreditSimulationDomainService.validateBusinessRules(simulation)) {
       throw new Error('Simulation does not meet business rules')
     }
 
+    const results: Record<string, SimulationResult> = {}
+    const allNormalizations =
+      BankParameterNormalizer.normalizeSimulationForAllBanks(simulation)
+
+    for (const bankService of this.bankServices) {
+      const bankName = bankService.getBankName()
+      const normalizationResult = allNormalizations[bankName]
+
+      if (!normalizationResult) {
+        console.warn(`No normalization rules found for bank: ${bankName}`)
+        continue
+      }
+
+      try {
+        const bankResponse = await bankService.simulationCredit(
+          normalizationResult.normalizedSimulation
+        )
+
+        await this.saveSimulation(
+          normalizationResult.normalizedSimulation,
+          bankResponse,
+          bankName
+        )
+
+        results[bankName] = {
+          bankResponse,
+          normalizationResult,
+          hadAdjustments: normalizationResult.adjustments.length > 0
+        }
+      } catch (error) {
+        console.error(`Failed to simulate with ${bankName}:`, error)
+      }
+    }
+
+    return results
+  }
+
+  checkRequiredAdjustments(
+    simulation: CreditSimulationWithPropertyType,
+    bankName: string
+  ): NormalizedSimulation {
+    return BankParameterNormalizer.normalizeSimulationForBank(
+      simulation,
+      bankName
+    )
+  }
+
+  checkRequiredAdjustmentsForAllBanks(
+    simulation: CreditSimulationWithPropertyType
+  ): Record<string, NormalizedSimulation> {
+    return BankParameterNormalizer.normalizeSimulationForAllBanks(simulation)
+  }
+
+  private findBankService(bankName: string): IBankApiService {
     const bankService = this.bankServices.find((service) => {
       const serviceName = service.getBankName().toLowerCase().trim()
-      const matches = serviceName === bankName.toLowerCase().trim()
-      return matches
+      return serviceName === bankName.toLowerCase().trim()
     })
 
     if (!bankService) {
       throw new Error(`Bank service for ${bankName} not found`)
     }
 
-    try {
-      const bankResponse = await bankService.simulationCredit(simulation)
-      await this.saveSimulation(simulation, bankResponse, bankName)
-      return bankResponse
-    } catch (error) {
-      console.error(`Error in bank simulation:${bankName}`, error)
-      throw error
+    return bankService
+  }
+
+  private logAdjustments(
+    normalizationResult: NormalizedSimulation,
+    bankName: string
+  ): void {
+    if (normalizationResult.adjustments.length > 0) {
+      console.log(`Adjustments made for ${bankName}:`)
+      normalizationResult.adjustments.forEach((adjustment, index) => {
+        console.log(
+          `${index + 1}. ${adjustment.fieldName}: ${adjustment.originalValue} → ${adjustment.adjustedValue}`
+        )
+        console.log(`Reason: ${adjustment.adjustmentReason}`)
+      })
+    } else {
+      console.log(`No adjustments needed for ${bankName}`)
     }
   }
 
