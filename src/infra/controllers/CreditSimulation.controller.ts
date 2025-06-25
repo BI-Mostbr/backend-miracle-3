@@ -107,7 +107,7 @@ export class CreditSimulationController {
         financingValue: simulationData.financingValue,
         installments: simulationData.installments,
         productType: simulationData.productType,
-        propertyType: simulationData.propertyType, // 'residential' | 'commercial'
+        propertyType: simulationData.propertyType,
         financingRate: simulationData.financingRate,
         amortizationType: simulationData.amortizationType,
         userId: simulationData.userId
@@ -125,14 +125,17 @@ export class CreditSimulationController {
           [result.bankResponse]
         )
 
-      // Adiciona informações sobre ajustes realizados
       const responseWithAdjustments = {
-        ...frontendResponse,
-        adjustments: {
-          hadAdjustments: result.hadAdjustments,
-          adjustmentsMade: result.normalizationResult.adjustments,
-          originalSimulation: result.normalizationResult.originalSimulation,
-          normalizedSimulation: result.normalizationResult.normalizedSimulation
+        simulacao: {
+          ...frontendResponse.simulacao,
+          ofertas: frontendResponse.simulacao.ofertas.map((oferta) => ({
+            ...oferta,
+            // Adiciona os ajustes logo após as tags
+            adjustments: {
+              hadAdjustments: result.hadAdjustments,
+              adjustmentsMade: result.normalizationResult.adjustments
+            }
+          }))
         }
       }
 
@@ -170,17 +173,22 @@ export class CreditSimulationController {
         simulacao: {
           cpf: simulation.customerCpf,
           nome: simulation.customerName,
-          ofertas: Object.entries(results).map(([bankName, result]) => ({
-            ...CreditSimulationResponseMapper.convertToFrontendResponse(
-              result.normalizationResult.normalizedSimulation,
-              [result.bankResponse]
-            ).simulacao.ofertas[0],
-            banco: bankName,
-            adjustments: {
-              hadAdjustments: result.hadAdjustments,
-              adjustmentsMade: result.normalizationResult.adjustments
+          ofertas: Object.entries(results).map(([bankName, result]) => {
+            const oferta =
+              CreditSimulationResponseMapper.convertToFrontendResponse(
+                result.normalizationResult.normalizedSimulation,
+                [result.bankResponse]
+              ).simulacao.ofertas[0]
+
+            return {
+              ...oferta,
+              banco: bankName,
+              adjustments: {
+                hadAdjustments: result.hadAdjustments,
+                adjustmentsMade: result.normalizationResult.adjustments
+              }
             }
-          }))
+          })
         }
       }
 

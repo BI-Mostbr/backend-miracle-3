@@ -65,7 +65,6 @@ export class ItauAuthService {
         })
 
         config.httpsAgent = httpsAgent
-        console.log('Auth client configurado com certificados')
       } else {
         console.warn('Auth client sem certificados')
       }
@@ -84,11 +83,8 @@ export class ItauAuthService {
 
   async getAccessToken(): Promise<string> {
     if (this.cachedToken && this.isTokenValid()) {
-      console.log('Usando token em cache (ainda válido)')
       return this.cachedToken
     }
-
-    console.log('Solicitando novo access token...')
     return await this.requestNewToken()
   }
 
@@ -123,51 +119,30 @@ export class ItauAuthService {
       this.tokenExpiresAt = Date.now() + expiresInMs - 5 * 60 * 1000
       return this.cachedToken
     } catch (error) {
-      console.error('Erro na autenticação SigV4:')
-
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
         const data = error.response?.data
         const responseHeaders = error.response?.headers
-
-        console.error(`   Status: ${status}`)
         console.error(
           `Response Headers:`,
           JSON.stringify(responseHeaders, null, 2)
         )
         console.error(`Response Data:`, JSON.stringify(data, null, 2))
         if (status === 400) {
-          console.error('\n💡 ERRO 400 - Bad Request:')
-          console.error(
-            '   - Verifique se grant_type está correto (client_credentials)'
-          )
-          console.error(
-            '   - Verifique se client_id e client_secret estão corretos'
-          )
-          console.error('   - Verifique se o Content-Type está correto')
           throw new Error(
             'Credenciais inválidas ou formato de requisição incorreto'
           )
         } else if (status === 401) {
-          console.error('\n💡 ERRO 401 - Unauthorized:')
-          console.error('   - Client ID ou Client Secret inválidos')
-          console.error('   - Credenciais expiradas ou revogadas')
           throw new Error('Client ID ou Client Secret inválidos')
         } else if (status === 403) {
-          console.error('\n💡 ERRO 403 - Forbidden:')
-          console.error('   - Cliente não autorizado para este grant type')
-          console.error('   - Escopo insuficiente')
           throw new Error(
             'Cliente não autorizado para client_credentials grant'
           )
         } else if (status === 429) {
-          console.error('\n💡 ERRO 429 - Rate Limit:')
-          console.error('   - Muitas tentativas de autenticação')
           throw new Error(
             'Rate limit excedido - aguarde antes de tentar novamente'
           )
         } else if (status === 500) {
-          console.error('\n💡 ERRO 500 - Erro interno do Itaú')
           throw new Error('Erro interno do servidor de autenticação do Itaú')
         }
 
@@ -178,7 +153,6 @@ export class ItauAuthService {
 
       const errorMessage =
         error instanceof Error ? error.message : 'Erro desconhecido'
-      console.error('   Erro de rede ou configuração:', errorMessage)
       throw new Error(`Erro de rede na autenticação: ${errorMessage}`)
     }
   }
@@ -196,7 +170,6 @@ export class ItauAuthService {
   }
 
   async refreshToken(): Promise<string> {
-    console.log('🔄 Forçando renovação do token...')
     this.cachedToken = null
     this.tokenExpiresAt = 0
     return await this.getAccessToken()
