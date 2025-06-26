@@ -3,6 +3,11 @@ import {
   SimulationResult
 } from '@application/use-cases/SimulateCreditUseCases'
 import { CreditSimulationWithPropertyType } from '@domain/services/BankParameterNormalizer'
+import {
+  ApiResponse,
+  GetItauSimulationRequest,
+  GetSantanderSimulationRequest
+} from '@infra/dtos/GetSimulation.dto'
 import { CreditSimulationResponseMapper } from '@infra/mappers/CreditSimulation.mapper'
 import { Request, Response } from 'express'
 
@@ -199,6 +204,81 @@ export class CreditSimulationController {
         error: 'Erro interno do servidor',
         message: error instanceof Error ? error.message : 'Erro desconhecido'
       })
+    }
+  }
+
+  async getSimulationFromBank(req: Request, res: Response): Promise<void> {
+    try {
+      const { bankName } = req.params
+      const requestBody = req.body
+      let request: any
+
+      switch (bankName.toLowerCase()) {
+        case 'itau':
+          request = {
+            idSimulation: requestBody.idSimulation,
+            includeCreditAnalysis: requestBody.includeCreditAnalysis
+          } as GetItauSimulationRequest
+          break
+
+        case 'santander':
+          request = {
+            idSimulation: requestBody.idSimulation
+          } as GetSantanderSimulationRequest
+          break
+
+        default:
+          res.status(400).json({
+            success: false,
+            error: 'Banco não suportado',
+            supportedBanks: ['itau', 'santander']
+          })
+          return
+      }
+
+      const simulationData = await this.useCase.getSimulationFromBank(
+        bankName.toLowerCase(),
+        request
+      )
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: simulationData,
+        timestamp: new Date().toISOString()
+      }
+
+      res.json(response)
+    } catch (error) {
+      console.error(
+        `Error getting simulation from ${req.params.bankName}:`,
+        error
+      )
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido'
+
+      if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+        res.status(404).json({
+          success: false,
+          error: 'Simulação não encontrada',
+          message: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+      } else if (errorMessage.includes('Bank service')) {
+        res.status(400).json({
+          success: false,
+          error: 'Banco não suportado',
+          message: errorMessage,
+          supportedBanks: ['itau', 'santander']
+        })
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Erro interno do servidor',
+          message: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+      }
     }
   }
 }

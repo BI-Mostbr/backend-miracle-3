@@ -140,24 +140,33 @@ export class ItauHttpClient {
   }
 
   async getSimulation(
-    simulationId: string,
-    includeCreditAnalysis: boolean,
-    includeInstallments: boolean
-  ): Promise<string> {
+    idSimulation: string,
+    accessToken: string,
+    includeCreditAnalysis: boolean
+  ): Promise<any> {
+    const flowId = this.generateFlowId()
+    const correlationId = this.generateCorrelationId()
+
     const headers = {
-      includeCreditAnalysis: includeCreditAnalysis,
-      includeInstallments: includeInstallments
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'x-itau-correlationID': correlationId,
+      'x-itau-flowID': flowId,
+      'x-itau-include-credit-analysis': String(includeCreditAnalysis)
     }
+
     try {
-      const getResponse = await this.axiosInstance.get(
-        `$/simulations/${simulationId}`,
+      const response = await this.axiosInstance.get(
+        `/simulations/${idSimulation}`,
         {
           headers
         }
       )
-      return getResponse.data
+      return response.data
     } catch (error) {
-      throw new Error('Erro ao buscar simulação do Itaú')
+      throw new Error(
+        `Erro ao buscar simulação ${idSimulation} do Itaú: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 }

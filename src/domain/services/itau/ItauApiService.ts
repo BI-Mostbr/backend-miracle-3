@@ -4,6 +4,11 @@ import { ItauHttpClient } from './client/ItauHttp.client'
 import { BankResponseSimulation, CreditSimulation } from '@domain/entities'
 import { ItauPayloadMapper } from './mappers/ItauPayload.mapper'
 import { ItauResponseMapper } from './mappers/itauResponse.mapper'
+import {
+  GetItauSimulationRequest,
+  GetItauSimulationResponse
+} from '@infra/dtos/GetSimulation.dto'
+import { ItauGetSimulationResponseMapper } from './mappers/ItauGetSimulationResponse.mapper'
 
 export class ItauApiService implements IBankApiService {
   private readonly authService: ItauAuthService
@@ -72,6 +77,28 @@ export class ItauApiService implements IBankApiService {
 
       throw new Error(
         `${this.getBankName()} simulation failed: ${String(error)}`
+      )
+    }
+  }
+
+  async getSimulation(
+    request: GetItauSimulationRequest
+  ): Promise<GetItauSimulationResponse> {
+    try {
+      const accessToken = await this.authService.getAccessToken()
+      const itauRawResponse = await this.httpClient.getSimulation(
+        request.idSimulation,
+        accessToken,
+        request.includeCreditAnalysis
+      )
+      const frontendResponse =
+        ItauGetSimulationResponseMapper.mapItauToFrontend(itauRawResponse)
+      return frontendResponse
+    } catch (error) {
+      throw new Error(
+        `Erro ao buscar simulação ${request.idSimulation} no Itaú: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       )
     }
   }

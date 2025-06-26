@@ -1,7 +1,4 @@
 import axios, { AxiosInstance } from 'axios'
-import https from 'https'
-import fs from 'fs'
-import path from 'path'
 
 export class SantanderAuthService {
   private readonly client_secret: string
