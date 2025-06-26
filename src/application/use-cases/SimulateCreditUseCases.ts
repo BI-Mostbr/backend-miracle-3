@@ -95,6 +95,25 @@ export class SimulateCreditUseCase {
     return results
   }
 
+  async getSimulationFromBank(bankName: string, request: any): Promise<any> {
+    const bankService = this.bankServices.find((service) => {
+      const serviceName = service.getBankName().toLowerCase().trim()
+      const matches = serviceName === bankName.toLowerCase().trim()
+      return matches
+    })
+    if (!bankService) {
+      throw new Error(`Bank service for ${bankName} not found`)
+    }
+    try {
+      const simulationData = await bankService.getSimulation(request)
+      console.log(`Simulação obtida com sucesso do ${bankName}`)
+      return simulationData
+    } catch (error) {
+      console.error(`Error getting simulation from ${bankName}:`, error)
+      throw error
+    }
+  }
+
   checkRequiredAdjustments(
     simulation: CreditSimulationWithPropertyType,
     bankName: string
