@@ -29,6 +29,7 @@ export class CreditSimulationResponseMapper {
       bankResponses.firstInstallment
     )
     return {
+      idSimulacao: bankResponses.simulationId,
       instituicao: bankResponses.bankName,
       credito_solicitado: this.formatCurrency(simulation.financingValue),
       prazo: `${simulation.installments} meses`,

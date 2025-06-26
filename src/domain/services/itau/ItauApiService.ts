@@ -75,6 +75,7 @@ export class ItauApiService implements IBankApiService {
       )
     }
   }
+
   async refreshCredentials(): Promise<void> {
     console.log('Forçando renovação das credenciais...')
     await this.authService.refreshToken()
