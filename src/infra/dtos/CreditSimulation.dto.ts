@@ -7,6 +7,7 @@ export interface CreditSimulationResponse {
 }
 
 export interface SimulationOffers {
+  idSimulacao: string
   instituicao: string
   produto: string
   credito_solicitado: string

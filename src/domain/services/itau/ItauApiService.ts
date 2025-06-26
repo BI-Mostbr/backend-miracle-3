@@ -51,7 +51,7 @@ export class ItauApiService implements IBankApiService {
             const retryResponse = await this.httpClient.simulateCredit(
               itauPayload,
               newAccessToken
-            ) 
+            )
             const retryInternResponse =
               ItauResponseMapper.convertToInternApiResponse(
                 retryResponse,
@@ -75,6 +75,7 @@ export class ItauApiService implements IBankApiService {
       )
     }
   }
+
   async refreshCredentials(): Promise<void> {
     console.log('Forçando renovação das credenciais...')
     await this.authService.refreshToken()
