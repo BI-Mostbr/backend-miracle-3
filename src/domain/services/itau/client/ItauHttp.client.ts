@@ -43,7 +43,7 @@ export class ItauHttpClient {
         })
         config.httpsAgent = httpsAgent
       } else {
-        console.warn('⚠️ HTTP client sem certificados')
+        console.warn('HTTP client sem certificados')
       }
       return axios.create(config)
     } catch (error) {
@@ -130,11 +130,34 @@ export class ItauHttpClient {
       )
     }
   }
+
   private generateFlowId(): string {
     return `flow-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
 
   private generateCorrelationId(): string {
     return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  }
+
+  async getSimulation(
+    simulationId: string,
+    includeCreditAnalysis: boolean,
+    includeInstallments: boolean
+  ): Promise<string> {
+    const headers = {
+      includeCreditAnalysis: includeCreditAnalysis,
+      includeInstallments: includeInstallments
+    }
+    try {
+      const getResponse = await this.axiosInstance.get(
+        `$/simulations/${simulationId}`,
+        {
+          headers
+        }
+      )
+      return getResponse.data
+    } catch (error) {
+      throw new Error('Erro ao buscar simulação do Itaú')
+    }
   }
 }
