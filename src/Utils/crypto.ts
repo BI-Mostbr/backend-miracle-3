@@ -25,15 +25,17 @@ export function decryptAes(value: string): string {
 }
 
 export function encryptAes(value: string): string {
+  var encripted = ''
   try {
-    const emBase64 = Buffer.from(encodeURI(value)).toString('base64')
-    const aesOfb = new aesjs.ModeOfOperation.ofb(key, iv)
-    const textBytes = aesjs.utils.utf8.toBytes(emBase64)
-    const encryptedBytes = aesOfb.encrypt(textBytes)
-    return aesjs.utils.hex.fromBytes(encryptedBytes)
+    var emBase64 = Buffer.from(encodeURI(value)).toString('base64')
+    var aesOfb = new aesjs.ModeOfOperation.ofb(key, iv)
+    var textBytes = aesjs.utils.utf8.toBytes(emBase64)
+    var encryptedBytes = aesOfb.encrypt(textBytes)
+    encripted = aesjs.utils.hex.fromBytes(encryptedBytes)
   } catch {
     return 'valor invalido'
   }
+  return encripted
 }
 
 export function decryptJasypt(encryptedText: string): string {

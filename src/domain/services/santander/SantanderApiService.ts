@@ -15,6 +15,7 @@ export class SantanderApiService implements IBankApiService {
     this.authService = new SantanderAuthService()
     this.httpClient = new SantanderHttpClient()
   }
+
   getBankName(): string {
     return 'santander'
   }
@@ -30,8 +31,6 @@ export class SantanderApiService implements IBankApiService {
       bodyEncriptado,
       accessTokenDecript
     )
-
-    console.log(santanderPayload)
     const santanderResponseDrcript = JSON.parse(
       decryptAes(santanderResponse.enc)
     ).data.calculateSimulation
@@ -42,5 +41,20 @@ export class SantanderApiService implements IBankApiService {
         simulation
       )
     return internSantanderResponse
+  }
+
+  async getSimulation(request: any) {
+    const idSimulation = request.idSimulation
+    const accessToken = await this.authService.getAccessToken()
+    const accessTokenDecript = JSON.parse(decryptAes(accessToken)).access_token
+    const idSimulationEncript = encryptAes(idSimulation)
+    const santanderPdfResponse = await this.httpClient.getPdf(
+      idSimulationEncript,
+      accessTokenDecript
+    )
+    const santanderPdfResponseDecript = JSON.parse(
+      decryptAes(santanderPdfResponse.enc)
+    )
+    return santanderPdfResponseDecript
   }
 }

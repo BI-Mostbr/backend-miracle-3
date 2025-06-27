@@ -2,7 +2,8 @@ import { CreditSimulationController } from '@infra/controllers/CreditSimulation.
 import { ValidationMiddleware } from '@infra/middlewares/Validation.middleware'
 import {
   BankNameParamSchema,
-  CreditSimulationRequestSchema
+  CreditSimulationRequestSchema,
+  GetSimulationRequestSchema
 } from '@infra/schemas/CreditSimulation.schema'
 import { Router } from 'express'
 
@@ -22,6 +23,13 @@ export function createCreditSimulationRoutes(
     ValidationMiddleware.validateParams(BankNameParamSchema),
     ValidationMiddleware.validateRequest(CreditSimulationRequestSchema),
     (req, res) => controller.simulateWithBank(req, res)
+  )
+
+  router.post(
+    '/simulation/:bankName/get',
+    ValidationMiddleware.validateParams(BankNameParamSchema),
+    ValidationMiddleware.validateRequest(GetSimulationRequestSchema),
+    (req, res) => controller.getSimulationFromBank(req, res)
   )
 
   return router
