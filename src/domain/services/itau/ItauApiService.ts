@@ -89,7 +89,8 @@ export class ItauApiService implements IBankApiService {
       const itauRawResponse = await this.httpClient.getSimulation(
         request.idSimulation,
         accessToken,
-        request.includeCreditAnalysis
+        request.includeCreditAnalysis,
+        request.includeInstallments
       )
       const frontendResponse =
         ItauGetSimulationResponseMapper.mapItauToFrontend(itauRawResponse)

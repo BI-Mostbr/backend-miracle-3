@@ -142,26 +142,30 @@ export class ItauHttpClient {
   async getSimulation(
     idSimulation: string,
     accessToken: string,
-    includeCreditAnalysis: boolean
+    includeCreditAnalysis: boolean,
+    includeInstallments: boolean
   ): Promise<any> {
     const flowId = this.generateFlowId()
     const correlationId = this.generateCorrelationId()
 
     const headers = {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
       'x-itau-correlationID': correlationId,
       'x-itau-flowID': flowId,
-      'x-itau-include-credit-analysis': String(includeCreditAnalysis)
+      'x-itau-apiKey': process.env.ITAU_API_KEY!,
+      Authorization: `Bearer ${accessToken}`
+    }
+    const queryParams = {
+      includeCreditAnalysis: includeCreditAnalysis,
+      includeInstallments: includeInstallments
     }
 
     try {
       const response = await this.axiosInstance.get(
         `/simulations/${idSimulation}`,
-        {
-          headers
-        }
+        { headers, params: queryParams }
       )
+      console.log(JSON.stringify(response.data))
       return response.data
     } catch (error) {
       throw new Error(
