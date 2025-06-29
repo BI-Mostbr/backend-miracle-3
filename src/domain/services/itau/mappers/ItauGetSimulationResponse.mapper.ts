@@ -5,16 +5,16 @@ export class ItauGetSimulationResponseMapper {
     return {
       nome:
         itauResponse.customerName || itauResponse.nome || 'Nome não informado',
-      status: itauResponse.status || itauResponse.creditStatus || 'aprovado',
-      propertyValue: this.formatCurrency(itauResponse.propertyValue || 0),
+      status: this.statusSimulatedToFrontend(itauResponse.data.credit.status),
+      propertyValue: this.formatCurrency(itauResponse.data.propertyPrice || 0),
       totalCreditValue: this.formatCurrency(
-        itauResponse.creditValue || itauResponse.valorCredito || 0
+        itauResponse.data.credit.maxFinancingValue
       ),
       maxInstallmentAmount: this.formatCurrency(
-        itauResponse.maxInstallment || itauResponse.valorMaximoParcela || 0
+        itauResponse.data.credit.maxInstallmentValue || 0
       ),
       purchasingPower: this.formatCurrency(
-        itauResponse.purchasingPower || itauResponse.poderCompra || 0
+        itauResponse.data.credit.maxInstallmentValue / 0.013431 || 0
       )
     }
   }
@@ -24,5 +24,14 @@ export class ItauGetSimulationResponseMapper {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(value)
+  }
+
+  static statusSimulatedToFrontend(value: number) {
+    switch (value) {
+      case 25:
+        return 'Aprovado'
+      default:
+        return 'Reprovado'
+    }
   }
 }

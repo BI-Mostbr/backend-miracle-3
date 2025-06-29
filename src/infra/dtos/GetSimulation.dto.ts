@@ -1,6 +1,7 @@
 export interface GetItauSimulationRequest {
   idSimulation: string
   includeCreditAnalysis: boolean
+  includeInstallments: boolean
 }
 
 export interface GetSantanderSimulationRequest {
