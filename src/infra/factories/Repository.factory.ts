@@ -1,5 +1,10 @@
+// src/infra/factories/Repository.factory.ts - Updated
+
 import { ISantanderSimulationRepository } from '@infra/interfaces'
+import { ClientRepository } from '@infra/repositories/Client.repository'
+import { InterProposalRepository } from '@infra/repositories/InterProposal.repository'
 import { InterSimulationRepository } from '@infra/repositories/InterSimulation.repostory'
+import { ItauProposalRepository } from '@infra/repositories/ItauProposal.repository'
 import { ItauSimulationRepository } from '@infra/repositories/ItauSimulation.repository'
 import { SantanderSimulationRepository } from '@infra/repositories/SantanderSimulation.repository'
 import { PrismaClient } from '@prisma/client'
@@ -23,8 +28,21 @@ export class RepositoryFactory {
   static createSantanderRepository(): ISantanderSimulationRepository {
     return new SantanderSimulationRepository(this.getPrismaClient())
   }
+
   static createInterRepository(): InterSimulationRepository {
     return new InterSimulationRepository(this.getPrismaClient())
+  }
+
+  static createItauProposalRepository(): ItauProposalRepository {
+    return new ItauProposalRepository(this.getPrismaClient())
+  }
+
+  static createInterProposalRepository(): InterProposalRepository {
+    return new InterProposalRepository(this.getPrismaClient())
+  }
+
+  static createClientRepository(): ClientRepository {
+    return new ClientRepository(this.getPrismaClient())
   }
 
   static async disconnect(): Promise<void> {

@@ -9,6 +9,8 @@ import { InterAuthService } from './auth/interAuth.service'
 import { InterHtppClient } from './client/interHttp.client'
 import { InterPayloadMapper } from './mappers/interPayload.mapper'
 import { InterResponseMapper } from './mappers/interResponse.mapper'
+import { InterProposalPayloadMapper } from './mappers/InterProposalPayload.mapper'
+import { InterProposalResponseMapper } from './mappers/InterProposalResponse.mapper'
 
 export class InterApiService implements IBankApiService {
   private readonly authService: InterAuthService
@@ -18,6 +20,11 @@ export class InterApiService implements IBankApiService {
     this.authService = new InterAuthService()
     this.httpClient = new InterHtppClient()
   }
+
+  getSimulation(request: any): Promise<any> {
+    throw new Error('Method not implemented.')
+  }
+
   async simulationCredit(
     simulation: CreditSimulation
   ): Promise<BankResponseSimulation> {
