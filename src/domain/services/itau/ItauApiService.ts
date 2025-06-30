@@ -120,10 +120,12 @@ export class ItauApiService
       }
 
       const accessToken = await this.authService.getAccessToken()
+      console.log(accessToken)
       const itauPayload = ItauProposalPayloadMapper.convertToPayload(
         proposal,
         consultorData
       )
+      console.log(JSON.stringify(itauPayload))
       const itauResponse = await this.httpClient.sendProposal(
         itauPayload,
         accessToken

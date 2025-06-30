@@ -66,7 +66,7 @@ export class CreditProposalController {
    *       200:
    *         description: Proposta enviada com sucesso
    *       400:
-   *         description: Dados inválidos
+   *         description: Dados inválidos ou falha no envio
    *       500:
    *         description: Erro interno do servidor
    */
@@ -83,20 +83,23 @@ export class CreditProposalController {
       // Enviar proposta
       const result = await this.useCase.sendToSpecificBank(proposal, bankName)
 
-      // Resposta de sucesso
+      // Resposta com informações detalhadas
       const response = {
         success: result.success,
         data: {
           bankName,
           result: result.results[0],
           clientId: result.clientId,
-          flowType: result.flowType
+          flowType: result.flowType,
+          message: result.success
+            ? 'Proposta enviada e dados salvos com sucesso'
+            : 'Falha no envio da proposta - dados não foram salvos'
         },
         timestamp: new Date().toISOString()
       }
 
       console.log(
-        `✅ Proposta processada para ${bankName}:`,
+        `${result.success ? '✅' : '❌'} Proposta processada para ${bankName}:`,
         result.success ? 'SUCESSO' : 'ERRO'
       )
 
@@ -118,7 +121,7 @@ export class CreditProposalController {
    * /api/credit/proposal/multiple:
    *   post:
    *     summary: Enviar proposta para múltiplos bancos
-   *     description: Envia proposta de financiamento para múltiplos bancos simultaneamente
+   *     description: Envia proposta de financiamento para múltiplos bancos simultaneamente. Os dados só são salvos se pelo menos um banco tiver sucesso.
    *     tags:
    *       - Credit Proposal
    *     requestBody:
@@ -152,9 +155,9 @@ export class CreditProposalController {
    *                 enum: [ISOLADO, PILOTO, REPASSE, PORTABILIDADE]
    *     responses:
    *       200:
-   *         description: Propostas processadas
+   *         description: Pelo menos uma proposta foi enviada com sucesso
    *       400:
-   *         description: Dados inválidos
+   *         description: Todas as propostas falharam ou dados inválidos
    *       500:
    *         description: Erro interno do servidor
    */
@@ -173,27 +176,39 @@ export class CreditProposalController {
       // Enviar para múltiplos bancos
       const result = await this.useCase.sendToMultipleBanks(proposal, bankNames)
 
+      // Calcular estatísticas
+      const successCount = result.results.filter((r) => r.success).length
+      const errorCount = result.results.filter((r) => !r.success).length
+
       // Estruturar resposta
       const response = {
-        success: result.success,
+        success: result.success, // true se pelo menos um banco teve sucesso
         data: {
-          totalBanks: bankNames.length,
-          successCount: result.results.filter((r) => r.success).length,
+          summary: {
+            totalBanks: bankNames.length,
+            successCount: successCount,
+            errorCount: errorCount,
+            dataSaved: result.success // Os dados foram salvos apenas se houve sucesso
+          },
           results: result.results,
           clientId: result.clientId,
-          flowType: result.flowType
+          flowType: result.flowType,
+          message: result.success
+            ? `${successCount}/${bankNames.length} bancos com sucesso. Dados salvos.`
+            : `Todas as ${bankNames.length} tentativas falharam. Dados não foram salvos.`
         },
         timestamp: new Date().toISOString()
       }
 
-      console.log(`✅ Propostas processadas:`, {
+      console.log(`${result.success ? '✅' : '❌'} Propostas processadas:`, {
         total: bankNames.length,
-        sucessos: result.results.filter((r) => r.success).length,
-        erros: result.results.filter((r) => !r.success).length
+        sucessos: successCount,
+        erros: errorCount,
+        dadosSalvos: result.success
       })
 
       // Status 200 se pelo menos uma proposta foi enviada com sucesso
-      const statusCode = result.results.some((r) => r.success) ? 200 : 400
+      const statusCode = result.success ? 200 : 400
 
       res.status(statusCode).json(response)
     } catch (error) {
@@ -247,23 +262,27 @@ export class CreditProposalController {
         {
           bankName: 'itau',
           available: true,
-          features: ['simulation', 'proposal', 'getSimulation']
+          features: ['simulation', 'proposal', 'getSimulation'],
+          persistence: 'conditional' // Dados salvos apenas com sucesso
         },
         {
           bankName: 'inter',
           available: true,
-          features: ['simulation', 'proposal']
+          features: ['simulation', 'proposal'],
+          persistence: 'conditional'
         },
         {
           bankName: 'santander',
           available: true,
-          features: ['simulation'] // Apenas simulação por enquanto
+          features: ['simulation'], // Apenas simulação por enquanto
+          persistence: 'conditional'
         }
       ]
 
       res.json({
         success: true,
         services: availableServices,
+        persistenceStrategy: 'conditional', // Dados só salvos com pelo menos um sucesso
         timestamp: new Date().toISOString()
       })
     } catch (error) {

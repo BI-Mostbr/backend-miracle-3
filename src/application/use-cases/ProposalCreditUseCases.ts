@@ -9,6 +9,7 @@ export interface ProposalResult {
   proposalId?: string
   proposalNumber?: string
   error?: string
+  bankResponse?: BankProposalResponse // Adicionar resposta do banco para salvar depois
 }
 
 export interface SendProposalResult {
@@ -39,30 +40,17 @@ export class SendProposalUseCase {
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
+    // 1. PRIMEIRO: Tentar enviar para o banco
     try {
-      // Executar fluxo baseado no tipo
-      clientId = await this.executeFlowLogic(proposal)
-
-      // Enviar proposta para o banco
+      console.log(`📤 Enviando proposta para ${bankName}...`)
       const bankResponse = await bankService.sendProposal(proposal)
-
-      // Salvar proposta do banco
-      await this.saveBankProposal(proposal, bankResponse, bankName)
-
-      // Se for fluxo de adicionar banco, atualizar cliente
-      if (proposal.flowType === 'adicionar-banco') {
-        await this.clientRepository.updateBankProposal(
-          proposal.customerCpf,
-          bankName,
-          bankResponse.proposalId
-        )
-      }
 
       results.push({
         bankName,
         success: true,
         proposalId: bankResponse.proposalId,
-        proposalNumber: bankResponse.proposalNumber
+        proposalNumber: bankResponse.proposalNumber,
+        bankResponse: bankResponse // Guardar para salvar depois
       })
 
       console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
@@ -75,9 +63,60 @@ export class SendProposalUseCase {
       })
     }
 
+    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
+    const hasSuccess = results.some((r) => r.success)
+
+    if (hasSuccess) {
+      try {
+        // Executar fluxo baseado no tipo (salvar cliente, etc.)
+        clientId = await this.executeFlowLogic(proposal)
+
+        // Salvar propostas dos bancos que tiveram sucesso
+        for (const result of results.filter(
+          (r) => r.success && r.bankResponse
+        )) {
+          await this.saveBankProposal(
+            proposal,
+            result.bankResponse!,
+            result.bankName
+          )
+
+          // Se for fluxo de adicionar banco, atualizar cliente
+          if (proposal.flowType === 'adicionar-banco') {
+            await this.clientRepository.updateBankProposal(
+              proposal.customerCpf,
+              result.bankName,
+              result.proposalId!
+            )
+          }
+        }
+
+        console.log(
+          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
+        )
+      } catch (error) {
+        console.error(`❌ Erro ao persistir dados:`, error)
+        // Se falhar ao persistir, marcar como erro mesmo que o envio tenha funcionado
+        results.forEach((r) => {
+          if (r.success) {
+            r.success = false
+            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+          }
+        })
+      }
+    } else {
+      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
+    }
+
     return {
       success: results.every((r) => r.success),
-      results,
+      results: results.map((r) => ({
+        bankName: r.bankName,
+        success: r.success,
+        proposalId: r.proposalId,
+        proposalNumber: r.proposalNumber,
+        error: r.error
+      })), // Remover bankResponse da resposta final
       clientId,
       flowType: proposal.flowType
     }
@@ -99,63 +138,92 @@ export class SendProposalUseCase {
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
-    try {
-      // Executar fluxo baseado no tipo (uma vez só)
-      clientId = await this.executeFlowLogic(proposal)
+    // 1. PRIMEIRO: Tentar enviar para todos os bancos
+    for (const bankName of bankNames) {
+      try {
+        const bankService = this.findBankService(bankName)
 
-      // Enviar para cada banco
-      for (const bankName of bankNames) {
-        try {
-          const bankService = this.findBankService(bankName)
+        console.log(`📤 Enviando proposta para ${bankName}...`)
+        const bankResponse = await bankService.sendProposal(proposal)
 
-          console.log(`📤 Enviando proposta para ${bankName}...`)
-          const bankResponse = await bankService.sendProposal(proposal)
+        results.push({
+          bankName,
+          success: true,
+          proposalId: bankResponse.proposalId,
+          proposalNumber: bankResponse.proposalNumber,
+          bankResponse: bankResponse // Guardar para salvar depois
+        })
 
-          // Salvar proposta do banco
-          await this.saveBankProposal(proposal, bankResponse, bankName)
+        console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
+      } catch (error) {
+        console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
+        results.push({
+          bankName,
+          success: false,
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
+        })
+      }
+    }
+
+    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
+    const successfulResults = results.filter((r) => r.success)
+
+    if (successfulResults.length > 0) {
+      try {
+        console.log(
+          `📋 ${successfulResults.length} bancos tiveram sucesso. Persistindo dados...`
+        )
+
+        // Executar fluxo baseado no tipo (salvar cliente, etc.)
+        clientId = await this.executeFlowLogic(proposal)
+
+        // Salvar propostas dos bancos que tiveram sucesso
+        for (const result of successfulResults) {
+          await this.saveBankProposal(
+            proposal,
+            result.bankResponse!,
+            result.bankName
+          )
 
           // Se for fluxo de adicionar banco, atualizar cliente
           if (proposal.flowType === 'adicionar-banco') {
             await this.clientRepository.updateBankProposal(
               proposal.customerCpf,
-              bankName,
-              bankResponse.proposalId
+              result.bankName,
+              result.proposalId!
             )
           }
-
-          results.push({
-            bankName,
-            success: true,
-            proposalId: bankResponse.proposalId,
-            proposalNumber: bankResponse.proposalNumber
-          })
-
-          console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
-        } catch (error) {
-          console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
-          results.push({
-            bankName,
-            success: false,
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
         }
-      }
-    } catch (error) {
-      console.error(`❌ Erro no fluxo principal:`, error)
-      // Se erro no fluxo principal, marcar todos os bancos como erro
-      for (const bankName of bankNames) {
-        results.push({
-          bankName,
-          success: false,
-          error:
-            error instanceof Error ? error.message : 'Erro no fluxo principal'
+
+        console.log(
+          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
+        )
+        console.log(
+          `✅ Resumo: ${successfulResults.length}/${bankNames.length} bancos com sucesso`
+        )
+      } catch (error) {
+        console.error(`❌ Erro ao persistir dados:`, error)
+        // Se falhar ao persistir, marcar todos os sucessos como erro
+        results.forEach((r) => {
+          if (r.success) {
+            r.success = false
+            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+          }
         })
       }
+    } else {
+      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
     }
 
     return {
-      success: results.every((r) => r.success),
-      results,
+      success: results.some((r) => r.success), // Mudança: sucesso se pelo menos um banco funcionou
+      results: results.map((r) => ({
+        bankName: r.bankName,
+        success: r.success,
+        proposalId: r.proposalId,
+        proposalNumber: r.proposalNumber,
+        error: r.error
+      })), // Remover bankResponse da resposta final
       clientId,
       flowType: proposal.flowType
     }

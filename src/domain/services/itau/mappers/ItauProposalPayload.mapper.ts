@@ -36,6 +36,20 @@ export class ItauProposalPayloadMapper {
         type: propertyType,
         state: proposal.propertyState
       },
+
+      financing: {
+        amortizationType: proposal.amortizationType,
+        financingValue: proposal.financingValue,
+        downPayment: proposal.downPayment,
+        itbiValue: proposal.itbiValue,
+        includeRegistryCosts: proposal.useItbi,
+        feeType: feeType,
+        propertyPrice: proposal.propertyValue,
+        period: proposal.installments,
+        walletType: 'SFH',
+        insuranceType: 'ITAU'
+      },
+
       proponents: [
         {
           email: proposal.customerEmail,
@@ -74,21 +88,6 @@ export class ItauProposalPayloadMapper {
 
     // Adicionar dados específicos baseados no tipo de produto
     switch (proposal.productType) {
-      case 'ISOLADO':
-        payload.financing = {
-          amortizationType: proposal.amortizationType,
-          financingValue: proposal.financingValue,
-          downPayment: proposal.downPayment,
-          itbiValue: proposal.itbiValue,
-          includeRegistryCosts: true,
-          feeType: feeType,
-          propertyPrice: proposal.propertyValue,
-          period: proposal.installments,
-          walletType: 'SFH',
-          insuranceType: 'ITAU'
-        }
-        break
-
       case 'PILOTO':
       case 'REPASSE':
         payload.construction = {
@@ -97,17 +96,7 @@ export class ItauProposalPayloadMapper {
           blockId: proposal.construction?.blockId,
           unitId: proposal.construction?.unitId
         }
-        payload.financing = {
-          amortizationType: proposal.amortizationType,
-          financingValue: proposal.financingValue,
-          downPayment: proposal.downPayment,
-          includeRegistryCosts: true,
-          feeType: feeType,
-          propertyPrice: proposal.propertyValue,
-          period: proposal.installments,
-          walletType: 'SFH',
-          insuranceType: 'ITAU'
-        }
+
         break
 
       case 'PORTABILIDADE':
