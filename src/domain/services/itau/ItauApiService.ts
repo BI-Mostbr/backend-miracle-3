@@ -102,10 +102,8 @@ export class ItauApiService
   async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
     try {
       let consultorData: ConsultorData | undefined
-      const userData = await this.userRepository.findUserById(proposal.userId)
       try {
         if (proposal.userId) {
-          console.log(`🔍 Buscando dados do consultor ID: ${proposal.userId}`)
           const userData = await this.userRepository.findUserById(
             proposal.userId
           )

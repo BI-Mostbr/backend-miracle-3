@@ -75,7 +75,6 @@ export class ItauProposalPayloadMapper {
     // Adicionar dados específicos baseados no tipo de produto
     switch (proposal.productType) {
       case 'ISOLADO':
-      case 'REPASSE':
         payload.financing = {
           amortizationType: proposal.amortizationType,
           financingValue: proposal.financingValue,
@@ -91,6 +90,7 @@ export class ItauProposalPayloadMapper {
         break
 
       case 'PILOTO':
+      case 'REPASSE':
         payload.construction = {
           businessPersonId: proposal.construction?.businessPersonId || '',
           enterpriseId: proposal.construction?.enterpriseId || '',
