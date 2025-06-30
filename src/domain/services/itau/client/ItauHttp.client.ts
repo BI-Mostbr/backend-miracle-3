@@ -3,6 +3,7 @@ import https from 'https'
 import fs from 'fs'
 import path from 'path'
 import { ItauApiPayload } from '../types/itauApiTypes'
+import { ItauProposalPayload } from '../types/ItauProposalPayload.type'
 
 export class ItauHttpClient {
   private readonly axiosInstance: AxiosInstance
@@ -150,6 +151,7 @@ export class ItauHttpClient {
       const response = await this.axiosInstance.post('/proposals', payload, {
         headers
       })
+      console.log('✅ Proposta enviada com sucesso:', response.data)
       return response.data
     } catch (error) {
       console.error('❌ Erro ao enviar proposta para o Itaú:', error)

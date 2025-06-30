@@ -5,19 +5,51 @@ import { convertDateBrToIso } from 'Utils/convertData'
 import { productItau } from 'Utils/mapToProduct'
 import { ItauProposalPayload } from '../types/ItauProposalPayload.type'
 
+export interface ConsultorData {
+  nome_itau: string | null
+  cpf: string
+}
 export class ItauProposalPayloadMapper {
-  static convertToPayload(proposal: CreditProposal): ItauProposalPayload {
+  static convertToPayload(
+    proposal: CreditProposal,
+    consultorData?: ConsultorData
+  ): ItauProposalPayload {
     const propertyType = mapToPropertyTypeItau(proposal.propertyType)
     const feeType = mapToFeeTypeItau(proposal.financingRate)
     const productType = productItau(proposal.productType)
     const birthDate = convertDateBrToIso(proposal.customerBirthDate)
 
     const payload: ItauProposalPayload = {
+      indication: {
+        partner: {
+          code: process.env.ITAU_CODE_PARTNER!,
+          cnpj: process.env.ITAU_CNPJ_PARTNER!,
+          agent: {
+            name: consultorData?.nome_itau || '',
+            cpf: consultorData?.cpf || ''
+          }
+        }
+      },
+
       productType: productType,
       property: {
         type: propertyType,
         state: proposal.propertyState
       },
+
+      financing: {
+        amortizationType: proposal.amortizationType,
+        financingValue: proposal.financingValue,
+        downPayment: proposal.downPayment,
+        itbiValue: proposal.itbiValue,
+        includeRegistryCosts: proposal.useItbi,
+        feeType: feeType,
+        propertyPrice: proposal.propertyValue,
+        period: proposal.installments,
+        walletType: 'SFH',
+        insuranceType: 'ITAU'
+      },
+
       proponents: [
         {
           email: proposal.customerEmail,
@@ -56,40 +88,15 @@ export class ItauProposalPayloadMapper {
 
     // Adicionar dados específicos baseados no tipo de produto
     switch (proposal.productType) {
-      case 'ISOLADO':
-      case 'REPASSE':
-        payload.financing = {
-          amortizationType: proposal.amortizationType,
-          financingValue: proposal.financingValue,
-          downPayment: proposal.downPayment,
-          itbiValue: proposal.itbiValue,
-          includeRegistryCosts: true,
-          feeType: feeType,
-          propertyPrice: proposal.propertyValue,
-          period: proposal.installments,
-          walletType: 'SFH',
-          insuranceType: 'ITAU'
-        }
-        break
-
       case 'PILOTO':
+      case 'REPASSE':
         payload.construction = {
           businessPersonId: proposal.construction?.businessPersonId || '',
           enterpriseId: proposal.construction?.enterpriseId || '',
           blockId: proposal.construction?.blockId,
           unitId: proposal.construction?.unitId
         }
-        payload.financing = {
-          amortizationType: proposal.amortizationType,
-          financingValue: proposal.financingValue,
-          downPayment: proposal.downPayment,
-          includeRegistryCosts: true,
-          feeType: feeType,
-          propertyPrice: proposal.propertyValue,
-          period: proposal.installments,
-          walletType: 'SFH',
-          insuranceType: 'ITAU'
-        }
+
         break
 
       case 'PORTABILIDADE':
@@ -111,7 +118,7 @@ export class ItauProposalPayloadMapper {
 
       payload.proponents[0].relationship = {
         maritalStatus: this.mapMaritalStatus(proposal.customerMaritalStatus),
-        liveTogether: true,
+        liveTogether: false,
         composeIncome: proposal.spouse.composeIncome,
         spouse: {
           email: proposal.spouse.email,
@@ -143,20 +150,6 @@ export class ItauProposalPayloadMapper {
               preference: true
             }
           ]
-        }
-      }
-    }
-
-    // Adicionar indicação do parceiro se necessário
-    if (proposal.partnerId) {
-      payload.indication = {
-        partner: {
-          code: proposal.partnerId,
-          cnpj: process.env.PARTNER_CNPJ || '',
-          agent: {
-            name: 'Consultor Most',
-            cpf: process.env.PARTNER_AGENT_CPF || ''
-          }
         }
       }
     }
