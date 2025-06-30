@@ -24,15 +24,36 @@ export class SantanderApiService implements IBankApiService {
   ): Promise<BankResponseSimulation> {
     const accessToken = await this.authService.getAccessToken()
     const accessTokenDecript = JSON.parse(decryptAes(accessToken)).access_token
-    const santanderPayload = SantanderPayloadMapper.convertToPayload(simulation)
+    const santanderPayload = SantanderPayloadMapper.convertToPayload(
+      simulation,
+      false
+    )
     const bodyEncriptado = encryptAes(JSON.stringify(santanderPayload))
     const santanderResponse = await this.httpClient.simulateCredit(
       bodyEncriptado,
       accessTokenDecript
     )
-    const santanderResponseDrcript = JSON.parse(
-      decryptAes(santanderResponse.enc)
-    ).data.calculateSimulation
+    let santanderResponseDrcript = JSON.parse(decryptAes(santanderResponse.enc))
+      .data.calculateSimulation
+
+    if (simulation.amortizationType === 'PRICE') {
+      const idSimulationEncript = encryptAes(
+        santanderResponseDrcript.simulationId
+      )
+      const customPayload = SantanderPayloadMapper.convertToPayload(
+        santanderResponseDrcript.simulationId,
+        true
+      )
+      const customBodyEncriptado = encryptAes(JSON.stringify(customPayload))
+
+      const customResponse = await this.httpClient.simulateCreditCustom(
+        customBodyEncriptado,
+        idSimulationEncript,
+        accessTokenDecript
+      )
+
+      santanderResponseDrcript = JSON.parse(decryptAes(customResponse.enc))
+    }
 
     const internSantanderResponse =
       SantanderResponseMapper.convertToInternApiResponse(

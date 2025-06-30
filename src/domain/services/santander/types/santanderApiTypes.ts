@@ -23,3 +23,21 @@ export interface SantanderApiPayload {
   }
   operationName: string
 }
+
+export interface SantanderApiCustomPayload {
+  simulationId: string
+  flagFinancePropertyRegistrationAndITBI: boolean
+  flagFinanceWarrantyEvaluationFee: boolean
+  flagFinanceIOF: boolean
+  insurerKey: string
+  relationShipOfferKey: string
+  amortizationTypeKey: string
+  paymentTypeKey: string
+  campaignKey: string
+  segmentKey: string
+  fgtsAmount: number
+  flowType: string
+  utmSource: string
+  nrPgCom: string
+  userCode: string
+}
