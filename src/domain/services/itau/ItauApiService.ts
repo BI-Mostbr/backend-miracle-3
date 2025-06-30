@@ -1,7 +1,12 @@
-import { IBankApiService } from '@infra/interfaces'
+import { IBankApiService, IBankProposalApiService } from '@infra/interfaces'
 import { ItauAuthService } from './auth/itauAuthService'
 import { ItauHttpClient } from './client/ItauHttp.client'
-import { BankResponseSimulation, CreditSimulation } from '@domain/entities'
+import {
+  BankProposalResponse,
+  BankResponseSimulation,
+  CreditProposal,
+  CreditSimulation
+} from '@domain/entities'
 import { ItauPayloadMapper } from './mappers/ItauPayload.mapper'
 import { ItauResponseMapper } from './mappers/itauResponse.mapper'
 import {
@@ -10,7 +15,9 @@ import {
 } from '@infra/dtos/GetSimulation.dto'
 import { ItauGetSimulationResponseMapper } from './mappers/ItauGetSimulationResponse.mapper'
 
-export class ItauApiService implements IBankApiService {
+export class ItauApiService
+  implements IBankApiService, IBankProposalApiService
+{
   private readonly authService: ItauAuthService
   private readonly httpClient: ItauHttpClient
 
@@ -81,6 +88,34 @@ export class ItauApiService implements IBankApiService {
     }
   }
 
+  async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
+    try {
+      console.log(`✨ Enviando proposta para o ${this.getBankName()}...`)
+
+      const accessToken = await this.authService.getAccessToken()
+      const itauPayload = ItauProposalPayloadMapper.convertToPayload(proposal)
+      const itauResponse = await this.httpClient.sendProposal(
+        itauPayload,
+        accessToken
+      )
+      const bankResponse = ItauProposalResponseMapper.convertToInternalResponse(
+        itauResponse,
+        proposal
+      )
+
+      console.log(
+        `✅ Proposta enviada com sucesso para o ${this.getBankName()}`
+      )
+      return bankResponse
+    } catch (error) {
+      console.error(
+        `❌ Erro ao enviar proposta para o ${this.getBankName()}:`,
+        error
+      )
+      return this.handleTokenError(error, () => this.sendProposal(proposal))
+    }
+  }
+
   async getSimulation(
     request: GetItauSimulationRequest
   ): Promise<GetItauSimulationResponse> {
@@ -102,6 +137,30 @@ export class ItauApiService implements IBankApiService {
         }`
       )
     }
+  }
+
+  private async handleTokenError<T>(
+    error: any,
+    retryFunction: () => Promise<T>
+  ): Promise<T> {
+    if (
+      error instanceof Error &&
+      error.message.includes('Bearer token inválido')
+    ) {
+      try {
+        console.log(`🔄 Tentando renovar token do ${this.getBankName()}...`)
+        await this.authService.refreshToken()
+        const result = await retryFunction()
+        console.log(`✅ Operação realizada com sucesso após renovação do token`)
+        return result
+      } catch (retryError) {
+        console.error(`❌ Erro mesmo após renovação do token:`, retryError)
+        throw new Error(
+          `Falha no ${this.getBankName()} mesmo após renovação do token: ${retryError}`
+        )
+      }
+    }
+    throw new Error(`${this.getBankName()} operation failed: ${error}`)
   }
 
   async refreshCredentials(): Promise<void> {

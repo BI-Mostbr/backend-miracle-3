@@ -1,4 +1,9 @@
-import { CreditSimulation, BankResponseSimulation } from '@domain/entities'
+import {
+  CreditSimulation,
+  BankResponseSimulation,
+  CreditProposal,
+  BankProposalResponse
+} from '@domain/entities'
 import { IBankApiService } from '@infra/interfaces'
 import { InterAuthService } from './auth/interAuth.service'
 import { InterHtppClient } from './client/interHttp.client'
@@ -52,6 +57,61 @@ export class InterApiService implements IBankApiService {
       )
     }
   }
+
+  async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
+    try {
+      console.log(`✨ Enviando proposta para o ${this.getBankName()}...`)
+
+      const accessToken = await this.authService.getAccessToken()
+      const interPayload = InterProposalPayloadMapper.convertToPayload(proposal)
+      const interResponse = await this.httpClient.sendProposal(
+        interPayload,
+        accessToken
+      )
+      const bankResponse =
+        InterProposalResponseMapper.convertToInternalResponse(
+          interResponse,
+          proposal
+        )
+
+      console.log(
+        `✅ Proposta enviada com sucesso para o ${this.getBankName()}`
+      )
+      return bankResponse
+    } catch (error) {
+      console.error(
+        `❌ Erro ao enviar proposta para o ${this.getBankName()}:`,
+        error
+      )
+      return this.handleTokenError(error, () => this.sendProposal(proposal))
+    }
+  }
+
+  private async handleTokenError<T>(
+    error: any,
+    retryFunction: () => Promise<T>
+  ): Promise<T> {
+    if (
+      error instanceof Error &&
+      error.message.includes('Bearer token inválido')
+    ) {
+      try {
+        console.log(`🔄 Tentando renovar token do ${this.getBankName()}...`)
+        const newAccessToken = await this.authService.getAccessToken()
+        const result = await retryFunction()
+        console.log(`✅ Operação realizada com sucesso após renovação do token`)
+        return result
+      } catch (retryError) {
+        console.error(`❌ Erro mesmo após renovação do token:`, retryError)
+        throw retryError
+      }
+    }
+
+    throw new Error(
+      `Erro no ${this.getBankName()}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+    )
+  }
+
   getBankName(): string {
     return 'inter'
   }
