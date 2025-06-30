@@ -6,6 +6,8 @@ import { ValidationMiddleware } from '@infra/middlewares/Validation.middleware'
 import { createCreditSimulationRoutes } from '@infra/routes/CreditSimulation.routes'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { CreditSimulationFactory } from '@infra/factories/CreditSimulation.factory'
+import { ProposalControllerFactory } from '@infra/factories/ProposalController.factory'
+import { createCreditProposalRoutes } from '@infra/routes/CreditProposal.routes'
 const app = express()
 app.use(
   cors({
@@ -38,6 +40,11 @@ app.get('/', (req, res) => {
 const creditController = CreditSimulationFactory.createController()
 const creditRoutes = createCreditSimulationRoutes(creditController)
 app.use('/api/credit', creditRoutes)
+
+const proposalController = ProposalControllerFactory.createController()
+const proposalRoutes = createCreditProposalRoutes(proposalController)
+app.use('/api/credit', proposalRoutes)
+
 app.get('/health', async (req, res) => {
   const healthCheck = {
     status: 'OK',
