@@ -131,6 +131,32 @@ export class ItauHttpClient {
     }
   }
 
+  async sendProposal(
+    payload: ItauProposalPayload,
+    accessToken: string
+  ): Promise<any> {
+    const flowId = this.generateFlowId()
+    const correlationId = this.generateCorrelationId()
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'x-itau-correlationID': correlationId,
+      'x-itau-flowID': flowId
+    }
+
+    try {
+      console.log('✨ ItauHttpClient: Enviando proposta')
+      const response = await this.axiosInstance.post('/proposals', payload, {
+        headers
+      })
+      return response.data
+    } catch (error) {
+      console.error('❌ Erro ao enviar proposta para o Itaú:', error)
+      this.handleError(error)
+    }
+  }
+
   private generateFlowId(): string {
     return `flow-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   }
@@ -172,5 +198,44 @@ export class ItauHttpClient {
         `Erro ao buscar simulação ${idSimulation} do Itaú: ${error instanceof Error ? error.message : String(error)}`
       )
     }
+  }
+
+  private handleError(error: any): never {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const data = error.response?.data
+
+      if (status === 401) {
+        throw new Error(
+          'Bearer token inválido ou expirado - renovação necessária'
+        )
+      } else if (status === 400) {
+        throw new Error(
+          `Dados inválidos: ${data?.message || 'Verifique os dados enviados'}`
+        )
+      } else if (status === 403) {
+        throw new Error('Token não tem permissão para esta operação')
+      } else if (status === 422) {
+        throw new Error(
+          `Dados não processáveis: ${data?.message || 'Verifique as regras de negócio'}`
+        )
+      } else if (status === 429) {
+        throw new Error(
+          'Rate limit excedido - aguarde antes de tentar novamente'
+        )
+      } else if (status === 500) {
+        throw new Error(
+          'Erro interno do servidor do Itaú - tente novamente mais tarde'
+        )
+      } else if (status === 503) {
+        throw new Error('Serviço do Itaú temporariamente indisponível')
+      }
+
+      throw new Error(
+        `Erro na API do Itaú (${status}): ${data?.message || 'Erro desconhecido'}`
+      )
+    }
+
+    throw new Error(`Erro de rede na comunicação com o Itaú: ${error}`)
   }
 }

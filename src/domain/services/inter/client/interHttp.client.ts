@@ -52,4 +52,50 @@ export class InterHtppClient {
       throw new Error(`Error simulating inter credit: ${error}`)
     }
   }
+
+  async sendProposal(
+    payload: InterProposalPayload,
+    accessToken: string
+  ): Promise<any> {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+
+    try {
+      console.log('✨ InterHttpClient: Enviando proposta')
+      const response = await this.axiosInstance.post(
+        '/proposta/criar',
+        payload,
+        { headers }
+      )
+      return response.data
+    } catch (error) {
+      console.error('❌ Erro ao enviar proposta para o Inter:', error)
+      this.handleError(error)
+    }
+  }
+
+  private handleError(error: any): never {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const data = error.response?.data
+
+      if (status === 401) {
+        throw new Error(
+          'Bearer token inválido ou expirado - renovação necessária'
+        )
+      } else if (status === 400) {
+        throw new Error(
+          `Dados inválidos: ${data?.message || 'Verifique os dados enviados'}`
+        )
+      } else if (status === 422) {
+        throw new Error(
+          `Dados não processáveis: ${data?.message || 'Verifique as regras de negócio'}`
+        )
+      }
+    }
+
+    throw new Error(`Erro ao comunicar com o Inter: ${error}`)
+  }
 }
