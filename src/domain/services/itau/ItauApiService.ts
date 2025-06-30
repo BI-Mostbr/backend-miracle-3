@@ -14,19 +14,28 @@ import {
   GetItauSimulationResponse
 } from '@infra/dtos/GetSimulation.dto'
 import { ItauGetSimulationResponseMapper } from './mappers/ItauGetSimulationResponse.mapper'
-import { ItauProposalPayloadMapper } from './mappers/ItauProposalPayload.mapper'
+import {
+  ConsultorData,
+  ItauProposalPayloadMapper
+} from './mappers/ItauProposalPayload.mapper'
 import { ItauProposalResponseMapper } from './mappers/ItauProposalResponse.mapper'
+import { UserRepository } from '@infra/repositories/User.repository'
+import { RepositoryFactory } from '@infra/factories/Repository.factory'
 
 export class ItauApiService
   implements IBankApiService, IBankProposalApiService
 {
   private readonly authService: ItauAuthService
   private readonly httpClient: ItauHttpClient
+  private readonly userRepository: UserRepository
 
   constructor() {
     this.authService = new ItauAuthService()
     this.httpClient = new ItauHttpClient()
     this.validateConfiguration()
+    this.userRepository = new UserRepository(
+      RepositoryFactory.getPrismaClient()
+    )
   }
 
   private validateConfiguration(): void {
@@ -92,10 +101,31 @@ export class ItauApiService
 
   async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
     try {
-      console.log(`✨ Enviando proposta para o ${this.getBankName()}...`)
+      let consultorData: ConsultorData | undefined
+      const userData = await this.userRepository.findUserById(proposal.userId)
+      try {
+        if (proposal.userId) {
+          console.log(`🔍 Buscando dados do consultor ID: ${proposal.userId}`)
+          const userData = await this.userRepository.findUserById(
+            proposal.userId
+          )
+
+          if (userData) {
+            consultorData = {
+              nome_itau: userData.nome_itau,
+              cpf: userData.cpf
+            }
+          }
+        }
+      } catch (userError) {
+        throw new Error('Erro ao buscar dados do consultor')
+      }
 
       const accessToken = await this.authService.getAccessToken()
-      const itauPayload = ItauProposalPayloadMapper.convertToPayload(proposal)
+      const itauPayload = ItauProposalPayloadMapper.convertToPayload(
+        proposal,
+        consultorData
+      )
       const itauResponse = await this.httpClient.sendProposal(
         itauPayload,
         accessToken

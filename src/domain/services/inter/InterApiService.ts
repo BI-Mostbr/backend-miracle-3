@@ -31,6 +31,7 @@ export class InterApiService implements IBankApiService {
     try {
       const accessToken = await this.authService.getAccessToken()
       const interPayload = InterPayloadMapper.convertToPayload(simulation)
+      console.log(JSON.stringify(interPayload))
       const interResponse = await this.httpClient.simulateCredit(
         interPayload,
         accessToken
