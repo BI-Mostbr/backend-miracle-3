@@ -14,6 +14,8 @@ import {
   GetItauSimulationResponse
 } from '@infra/dtos/GetSimulation.dto'
 import { ItauGetSimulationResponseMapper } from './mappers/ItauGetSimulationResponse.mapper'
+import { ItauProposalPayloadMapper } from './mappers/ItauProposalPayload.mapper'
+import { ItauProposalResponseMapper } from './mappers/ItauProposalResponse.mapper'
 
 export class ItauApiService
   implements IBankApiService, IBankProposalApiService
