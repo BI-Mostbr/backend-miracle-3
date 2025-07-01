@@ -4,11 +4,13 @@ import { mapToFeeTypeItau } from 'Utils/mapToFeeType'
 import { convertDateBrToIso } from 'Utils/convertData'
 import { productItau } from 'Utils/mapToProduct'
 import { ItauProposalPayload } from '../types/ItauProposalPayload.type'
+import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
 
 export interface ConsultorData {
-  nome_itau: string | null
-  cpf: string
+  nome_itau?: string
+  cpf?: string
 }
+
 export class ItauProposalPayloadMapper {
   static convertToPayload(
     proposal: CreditProposal,
@@ -16,78 +18,127 @@ export class ItauProposalPayloadMapper {
   ): ItauProposalPayload {
     const propertyType = mapToPropertyTypeItau(proposal.propertyType)
     const feeType = mapToFeeTypeItau(proposal.financingRate)
-    const productType = productItau(proposal.productType)
-    const birthDate = convertDateBrToIso(proposal.customerBirthDate)
+    const productType = productItau(proposal.selectedProductOption)
+    const birthDate = convertDateBrToIso(proposal.birthday)
+
+    // Verificar se existe cônjuge válido
+    const hasValidSpouse =
+      proposal.spouse &&
+      proposal.spouse.document &&
+      proposal.spouse.name &&
+      proposal.maritalStatus.toLowerCase() !== 'solteiro'
 
     const payload: ItauProposalPayload = {
+      productType: productType,
       indication: {
         partner: {
-          code: process.env.ITAU_CODE_PARTNER!,
-          cnpj: process.env.ITAU_CNPJ_PARTNER!,
+          code: process.env.ITAU_CODE_PARTNER || '',
+          cnpj: process.env.ITAU_CNPJ_PARTNER || '',
           agent: {
-            name: consultorData?.nome_itau || '',
-            cpf: consultorData?.cpf || ''
+            name: consultorData?.nome_itau!,
+            cpf: consultorData?.cpf!
           }
         }
       },
-
-      productType: productType,
       property: {
         type: propertyType,
-        state: proposal.propertyState
+        state: proposal.uf
       },
-
       financing: {
-        amortizationType: proposal.amortizationType,
-        financingValue: proposal.financingValue,
-        downPayment: proposal.downPayment,
-        itbiValue: proposal.itbiValue,
-        includeRegistryCosts: proposal.useItbi,
+        amortizationType: proposal.amortization.toUpperCase(),
+        financingValue: CreditProposalMapper.getFinancedValueAsNumber(proposal),
+        downPayment: CreditProposalMapper.getDownPayment(proposal),
+        itbiValue: CreditProposalMapper.getItbiValueAsNumber(proposal),
+        includeRegistryCosts: true,
         feeType: feeType,
-        propertyPrice: proposal.propertyValue,
-        period: proposal.installments,
+        propertyPrice: CreditProposalMapper.getPropertyValueAsNumber(proposal),
+        period: CreditProposalMapper.getTermAsNumber(proposal),
         walletType: 'SFH',
         insuranceType: 'ITAU'
       },
-
       proponents: [
         {
-          email: proposal.customerEmail,
+          email: proposal.email,
           holder: true,
           identification: {
-            cpf: proposal.customerCpf,
-            name: proposal.customerName,
+            cpf: CreditProposalMapper.getCleanCpf(proposal),
+            name: proposal.name,
             birthDate: birthDate,
             nationality: 'BRASILEIRA'
           },
           occupation: {
-            profession: proposal.customerProfession,
-            incomeType: this.mapIncomeType(proposal.customerIncomeType),
-            incomeValue: proposal.customerIncome
+            profession: proposal.profession,
+            incomeType: this.mapIncomeType(proposal.workType),
+            incomeValue: CreditProposalMapper.getMonthlyIncomeAsNumber(proposal)
+          },
+          relationship: {
+            maritalStatus: this.mapMaritalStatus(proposal.maritalStatus),
+            liveTogether: !!hasValidSpouse,
+            composeIncome: hasValidSpouse
+              ? proposal.spouse?.spouseContributesIncome || false
+              : false,
+            spouse: hasValidSpouse
+              ? {
+                  email: proposal.spouse!.email,
+                  identification: {
+                    cpf: proposal.spouse!.document.replace(/\D/g, ''),
+                    name: proposal.spouse!.name,
+                    birthDate: convertDateBrToIso(proposal.spouse!.birthday),
+                    nationality: 'BRASILEIRA'
+                  },
+                  occupation: {
+                    profession: proposal.spouse!.profession,
+                    incomeType: this.mapIncomeType(proposal.spouse!.workType),
+                    incomeValue:
+                      parseFloat(
+                        proposal
+                          .spouse!.monthlyIncome.replace(/[R$\s.,]/g, '')
+                          .replace(',', '.')
+                      ) || 0
+                  },
+                  address: {
+                    type: 'RESIDENTIAL',
+                    zipCode: proposal.spouse!.cep.replace(/\D/g, ''),
+                    state: proposal.spouse!.ufRedisence,
+                    city: proposal.spouse!.localidade,
+                    street: proposal.spouse!.logradouro,
+                    number: proposal.spouse!.number,
+                    district: proposal.spouse!.bairro,
+                    complement: proposal.spouse!.complement
+                  },
+                  contacts: [
+                    {
+                      type: 'MOBILE',
+                      content: proposal.spouse!.phone.replace(/\D/g, ''),
+                      preference: true
+                    }
+                  ]
+                }
+              : null // ✅ Explicitamente null quando não há cônjuge
           },
           contacts: [
             {
               type: 'MOBILE',
-              content: proposal.customerPhone,
+              content: CreditProposalMapper.getCleanPhone(proposal),
               preference: true
             }
           ],
           address: {
             type: 'RESIDENTIAL',
-            zipCode: proposal.customerAddress.zipCode,
-            state: proposal.customerAddress.state,
-            city: proposal.customerAddress.city,
-            street: proposal.customerAddress.street,
-            number: proposal.customerAddress.number,
-            district: proposal.customerAddress.neighborhood,
-            complement: proposal.customerAddress.complement
+            zipCode: proposal.userAddress.cep.replace(/\D/g, ''),
+            state: proposal.userAddress.uf,
+            city: proposal.userAddress.localidade,
+            street: proposal.userAddress.logradouro,
+            number: proposal.userAddress.number,
+            district: proposal.userAddress.bairro,
+            complement: proposal.userAddress.complement
           }
         }
       ]
     }
 
     // Adicionar dados específicos baseados no tipo de produto
-    switch (proposal.productType) {
+    switch (proposal.selectedProductOption) {
       case 'PILOTO':
       case 'REPASSE':
         payload.construction = {
@@ -96,62 +147,22 @@ export class ItauProposalPayloadMapper {
           blockId: proposal.construction?.blockId,
           unitId: proposal.construction?.unitId
         }
-
         break
 
       case 'PORTABILIDADE':
         payload.portability = {
-          amortizationType: proposal.amortizationType,
+          amortizationType: proposal.amortization.toUpperCase(),
           feeType: feeType,
           insuranceType: 'ITAU',
           outstandingBalance: proposal.portability?.outstandingBalance || 0,
-          propertyPrice: proposal.propertyValue,
+          propertyPrice:
+            CreditProposalMapper.getPropertyValueAsNumber(proposal),
           remainingPeriod: proposal.portability?.remainingPeriod || 0,
           originalPeriod: proposal.portability?.originalPeriod || 0
         }
+        // Remove financing para portabilidade
+        delete payload.financing
         break
-    }
-
-    // Adicionar cônjuge se existir
-    if (proposal.spouse) {
-      const spouseBirthDate = convertDateBrToIso(proposal.spouse.birthDate)
-
-      payload.proponents[0].relationship = {
-        maritalStatus: this.mapMaritalStatus(proposal.customerMaritalStatus),
-        liveTogether: false,
-        composeIncome: proposal.spouse.composeIncome,
-        spouse: {
-          email: proposal.spouse.email,
-          identification: {
-            cpf: proposal.spouse.cpf,
-            name: proposal.spouse.name,
-            birthDate: spouseBirthDate,
-            nationality: 'BRASILEIRA'
-          },
-          occupation: {
-            profession: proposal.spouse.profession,
-            incomeType: this.mapIncomeType(proposal.spouse.incomeType),
-            incomeValue: proposal.spouse.income
-          },
-          address: {
-            type: 'RESIDENTIAL',
-            zipCode: proposal.spouse.address.zipCode,
-            state: proposal.spouse.address.state,
-            city: proposal.spouse.address.city,
-            street: proposal.spouse.address.street,
-            number: proposal.spouse.address.number,
-            district: proposal.spouse.address.neighborhood,
-            complement: proposal.spouse.address.complement
-          },
-          contacts: [
-            {
-              type: 'MOBILE',
-              content: proposal.spouse.phone,
-              preference: true
-            }
-          ]
-        }
-      }
     }
 
     return payload

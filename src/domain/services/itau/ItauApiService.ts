@@ -103,14 +103,14 @@ export class ItauApiService
     try {
       let consultorData: ConsultorData | undefined
       try {
-        if (proposal.userId) {
+        if (proposal.consultorId) {
           const userData = await this.userRepository.findUserById(
-            proposal.userId
+            proposal.consultorId
           )
-
+          console.log('Dados do consultor:', userData)
           if (userData) {
             consultorData = {
-              nome_itau: userData.nome_itau,
+              nome_itau: userData.nome_itau ?? undefined,
               cpf: userData.cpf
             }
           }
@@ -120,7 +120,6 @@ export class ItauApiService
       }
 
       const accessToken = await this.authService.getAccessToken()
-      console.log(accessToken)
       const itauPayload = ItauProposalPayloadMapper.convertToPayload(
         proposal,
         consultorData

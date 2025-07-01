@@ -65,11 +65,11 @@ export interface ItauProponent {
     incomeType: string
     incomeValue: number
   }
-  relationship?: {
+  relationship: {
     maritalStatus: string
-    liveTogether?: boolean
-    composeIncome?: boolean
-    spouse?: ItauSpouse
+    liveTogether: boolean
+    composeIncome: boolean
+    spouse: ItauSpouse | null // ← MUDANÇA: Permite null explicitamente
   }
   contacts: Array<{
     type: string
