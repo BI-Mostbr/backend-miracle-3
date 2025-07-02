@@ -2,6 +2,7 @@
 
 import { ISantanderSimulationRepository } from '@infra/interfaces'
 import { ClientRepository } from '@infra/repositories/Client.repository'
+import { DeParaRepository } from '@infra/repositories/DePara.repository'
 import { InterProposalRepository } from '@infra/repositories/InterProposal.repository'
 import { InterSimulationRepository } from '@infra/repositories/InterSimulation.repostory'
 import { ItauProposalRepository } from '@infra/repositories/ItauProposal.repository'
@@ -48,6 +49,10 @@ export class RepositoryFactory {
 
   static createUserRepository(): UserRepository {
     return new UserRepository(this.getPrismaClient())
+  }
+
+  static createDeParaRepository(): DeParaRepository {
+    return new DeParaRepository(this.getPrismaClient())
   }
 
   static async disconnect(): Promise<void> {
