@@ -1,14 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 
-export class DeParaSantanderRepository {
+export class DeParaRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async findStatusByGlobalStatus(statusGlobal: string) {
+  async findStatusByGlobalStatus(statusGlobal: string, idBanco: number) {
     try {
       const result = await this.prisma.tb_depara.findFirst({
         where: {
           status: statusGlobal,
-          id_banco: 2 // Santander
+          id_banco: idBanco
         },
         select: {
           id_status_most: true,
