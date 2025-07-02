@@ -21,6 +21,7 @@ import {
 import { ItauProposalResponseMapper } from './mappers/ItauProposalResponse.mapper'
 import { UserRepository } from '@infra/repositories/User.repository'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
+import { delay } from 'Utils/delay'
 
 export class ItauApiService
   implements IBankApiService, IBankProposalApiService
@@ -103,14 +104,14 @@ export class ItauApiService
     try {
       let consultorData: ConsultorData | undefined
       try {
-        if (proposal.userId) {
+        if (proposal.consultorId) {
           const userData = await this.userRepository.findUserById(
-            proposal.userId
+            proposal.consultorId
           )
-
+          console.log('Dados do consultor:', userData)
           if (userData) {
             consultorData = {
-              nome_itau: userData.nome_itau,
+              nome_itau: userData.nome_itau ?? undefined,
               cpf: userData.cpf
             }
           }
@@ -120,16 +121,21 @@ export class ItauApiService
       }
 
       const accessToken = await this.authService.getAccessToken()
-      console.log(accessToken)
       const itauPayload = ItauProposalPayloadMapper.convertToPayload(
         proposal,
         consultorData
       )
-      console.log(JSON.stringify(itauPayload))
       const itauResponse = await this.httpClient.sendProposal(
         itauPayload,
         accessToken
       )
+      await delay(5000)
+      const itauGetProposal = await this.httpClient.getProposal(
+        itauResponse.data.proposalNumber,
+        accessToken
+      )
+      console.log('Resposta bruta do Itaú:', JSON.stringify(itauGetProposal))
+      console.log(JSON.stringify(itauResponse))
       const bankResponse = ItauProposalResponseMapper.convertToInternalResponse(
         itauResponse,
         proposal

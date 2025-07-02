@@ -5,6 +5,8 @@ import {
   IClientRepository
 } from '@infra/interfaces'
 import { PrismaClient } from '@prisma/client'
+import { convertDateBrToIso } from 'Utils/convertData'
+import { cleanCpf, cleanMoney } from 'Utils/removeMasks'
 
 export class ClientRepository implements IClientRepository {
   constructor(private prisma: PrismaClient) {}
@@ -13,19 +15,17 @@ export class ClientRepository implements IClientRepository {
     try {
       const clientData = await this.prisma.tb_clientes.create({
         data: {
-          cpf: proposal.customerCpf,
-          valor_solicitado: proposal.financingValue,
-          id_produto: this.getProductId(proposal.productType),
+          cpf: cleanCpf(proposal.document),
+          valor_solicitado: cleanMoney(proposal.financedValue),
+          id_produto: this.getProductId(proposal.selectedProductOption),
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
             : undefined,
           parceiro: proposal.partnerId,
-          dt_ult_atualizacao: new Date().toISOString(),
-          created_at: new Date()
+          dt_ult_atualizacao: new Date().toISOString()
         }
       })
 
-      console.log(`💾 Cliente salvo com ID: ${clientData.id}`)
       return clientData
     } catch (error) {
       console.error('❌ Erro ao salvar cliente:', error)
@@ -38,67 +38,58 @@ export class ClientRepository implements IClientRepository {
     clientId: bigint
   ): Promise<IClientDetailsData> {
     try {
-      // Converter valores monetários
-      const cleanMoneyValue = (value: string): number => {
-        if (typeof value === 'number') return value
-        return (
-          parseFloat(
-            value
-              ?.toString()
-              .replace(/[R$\s.,]/g, '')
-              .replace(',', '.') || '0'
-          ) || 0
-        )
-      }
+      const propertyValue = cleanMoney(proposal.propertyValue)
+      const financedValue = cleanMoney(proposal.financedValue)
 
+      const downPayment = propertyValue - financedValue
       const clientDetailsData = await this.prisma.clientes_detalhes.create({
         data: {
-          cpf_cnpj: BigInt(proposal.customerCpf),
-          nome: proposal.customerName,
-          estado_civil: proposal.customerMaritalStatus,
+          cpf_cnpj: 0,
+          nome: proposal.name,
+          estado_civil: proposal.maritalStatus,
           tipo_imovel: proposal.propertyType,
-          sexo: proposal.customerGender,
+          sexo: proposal.gender,
           tipo_contato: 'Celular',
           rg: proposal.documentNumber,
           tipo_endereco: 'Residencial',
-          tipo_renda: proposal.customerIncomeType,
-          tipo_amortizacao: proposal.amortizationType,
+          tipo_renda: proposal.workType,
+          tipo_amortizacao: proposal.amortization,
           tipo_taxa_financiamento: proposal.financingRate,
-          UF_proponente: proposal.customerAddress.state,
-          CEP: proposal.customerAddress.zipCode,
-          valor_entrada: proposal.downPayment,
-          prazo: proposal.installments,
-          municipio_imovel: proposal.propertyCity,
-          FGTS: proposal.useFgts,
-          UF_imovel: proposal.propertyState,
+          UF_proponente: proposal.uf,
+          CEP: proposal.userAddress.cep,
+          valor_entrada: downPayment,
+          prazo: Number(proposal.term),
+          municipio_imovel: proposal.cities,
+          FGTS: proposal.useFGTS,
+          UF_imovel: proposal.uf,
           tipo_carteira: 'SFH',
-          ITBI: proposal.useItbi,
-          vlr_itbi: proposal.itbiValue,
-          dt_nasc: proposal.customerBirthDate,
-          nome_mae: proposal.customerMotherName,
+          ITBI: proposal.itbiPayment,
+          vlr_itbi: cleanMoney(proposal.itbiValue || '0'),
+          dt_nasc: convertDateBrToIso(proposal.birthday),
+          nome_mae: proposal.motherName,
           orgao_expedidor: proposal.documentIssuer,
-          uf_rg: proposal.documentUf,
+          uf_rg: proposal.ufDataUser,
           data_emissao_rg: proposal.documentIssueDate,
-          nr_contato: proposal.customerPhone,
-          email: proposal.customerEmail,
-          endereco: proposal.customerAddress.street,
-          numero_endereco: proposal.customerAddress.number,
-          bairro_endereco: proposal.customerAddress.neighborhood,
-          complemento_endereco: proposal.customerAddress.complement,
-          cidade_endereco: proposal.customerAddress.city,
-          profissao: proposal.customerProfession,
-          regime_trabalho: proposal.customerWorkRegime,
-          vlr_renda_mensal: proposal.customerIncome,
-          estado_civil_cliente: proposal.customerMaritalStatus,
+          nr_contato: proposal.phone,
+          email: proposal.email,
+          endereco: proposal.userAddress.logradouro,
+          numero_endereco: proposal.userAddress.number,
+          bairro_endereco: proposal.userAddress.localidade,
+          complemento_endereco: proposal.userAddress.complement,
+          cidade_endereco: proposal.userAddress.localidade,
+          profissao: proposal.profession,
+          regime_trabalho: proposal.workType,
+          vlr_renda_mensal: cleanMoney(proposal.monthlyIncome),
+          estado_civil_cliente: proposal.maritalStatus,
           segundo_proponente: !!proposal.spouse,
-          cpf_cliente: proposal.customerCpf,
+          cpf_cliente: cleanCpf(proposal.document),
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
             : undefined,
           parceiro: proposal.partnerId,
-          valor_imovel: proposal.propertyValue,
-          vlr_solicitado: proposal.financingValue,
-          vlr_fgts: proposal.fgtsValue,
+          valor_imovel: propertyValue,
+          vlr_solicitado: financedValue,
+          vlr_fgts: cleanMoney(proposal.fgtsValue || '0'),
           tipo_documento: proposal.documentType,
           created_at: new Date()
         }

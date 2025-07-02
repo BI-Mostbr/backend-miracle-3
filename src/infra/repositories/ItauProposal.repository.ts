@@ -1,6 +1,7 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
 import { IItauProposalRepository, IItauProposalData } from '@infra/interfaces'
 import { PrismaClient } from '@prisma/client'
+import { cleanMoney } from 'Utils/removeMasks'
 
 export class ItauProposalRepository implements IItauProposalRepository {
   constructor(private prisma: PrismaClient) {}
@@ -16,27 +17,26 @@ export class ItauProposalRepository implements IItauProposalRepository {
       // Se não for reenvio, buscar ou criar o cliente
       if (flowType !== 'reenvio') {
         const existingClient = await this.prisma.tb_clientes.findUnique({
-          where: { cpf: proposal.customerCpf }
+          where: { cpf: proposal.document }
         })
         clientMostId = existingClient?.id
       }
-
+      const financedValue = cleanMoney(proposal.financedValue)
+      const propertyValue = cleanMoney(proposal.propertyValue)
+      const ltv = this.calculateLTV(financedValue, propertyValue)
       const itauData = await this.prisma.tb_itau.create({
         data: {
           id_proposta: bankResponse.proposalId,
           status_global: 'ENVIADO',
-          valor_solicitado: proposal.financingValue,
-          prazo: BigInt(proposal.installments),
-          valor_compra_venda: proposal.propertyValue,
-          valor_fgts: proposal.fgtsValue || 0,
-          ltv: this.calculateLTV(
-            proposal.financingValue,
-            proposal.propertyValue
-          ),
+          valor_solicitado: financedValue,
+          prazo: BigInt(proposal.term),
+          valor_compra_venda: propertyValue,
+          valor_fgts: cleanMoney(proposal.fgtsValue || 0),
+          ltv: ltv,
           id_cliente_most: clientMostId,
           proposal_uuid: bankResponse.bankSpecificData?.itau?.proposalId,
           proposta_copiada: false,
-          id_produto: this.getProductId(proposal.productType),
+          id_produto: this.getProductId(proposal.selectedProductOption),
           created_at: new Date()
         }
       })

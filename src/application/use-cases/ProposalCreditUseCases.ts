@@ -2,6 +2,7 @@ import { BankProposalResponse, CreditProposal } from '@domain/entities'
 import { CreditSimulationDomainService } from '@domain/services/CreditSimulationDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { IBankProposalApiService, IClientRepository } from '@infra/interfaces'
+import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
 
 export interface ProposalResult {
   bankName: string
@@ -9,7 +10,6 @@ export interface ProposalResult {
   proposalId?: string
   proposalNumber?: string
   error?: string
-  bankResponse?: BankProposalResponse // Adicionar resposta do banco para salvar depois
 }
 
 export interface SendProposalResult {
@@ -31,8 +31,9 @@ export class SendProposalUseCase {
   ): Promise<SendProposalResult> {
     console.log(`🚀 Iniciando envio de proposta para ${bankName}`)
 
-    // Validação das regras de negócio
-    if (!CreditSimulationDomainService.validateBusinessRules(proposal)) {
+    // Validação das regras de negócio usando dados convertidos
+    const legacyProposal = this.convertToLegacyFormat(proposal)
+    if (!CreditSimulationDomainService.validateBusinessRules(legacyProposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
@@ -40,17 +41,30 @@ export class SendProposalUseCase {
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
-    // 1. PRIMEIRO: Tentar enviar para o banco
     try {
-      console.log(`📤 Enviando proposta para ${bankName}...`)
+      // Enviar proposta para o banco
       const bankResponse = await bankService.sendProposal(proposal)
+
+      // Save client data only after a successful proposal
+      clientId = await this.executeFlowLogic(proposal)
+
+      // Salvar proposta do banco
+      await this.saveBankProposal(proposal, bankResponse, bankName)
+
+      // Se for fluxo de adicionar banco, atualizar cliente
+      if (proposal.fluxo === 'adicionar-banco') {
+        await this.clientRepository.updateBankProposal(
+          CreditProposalMapper.getCleanCpf(proposal),
+          bankName,
+          bankResponse.proposalId
+        )
+      }
 
       results.push({
         bankName,
         success: true,
         proposalId: bankResponse.proposalId,
-        proposalNumber: bankResponse.proposalNumber,
-        bankResponse: bankResponse // Guardar para salvar depois
+        proposalNumber: bankResponse.proposalNumber
       })
 
       console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
@@ -63,62 +77,11 @@ export class SendProposalUseCase {
       })
     }
 
-    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
-    const hasSuccess = results.some((r) => r.success)
-
-    if (hasSuccess) {
-      try {
-        // Executar fluxo baseado no tipo (salvar cliente, etc.)
-        clientId = await this.executeFlowLogic(proposal)
-
-        // Salvar propostas dos bancos que tiveram sucesso
-        for (const result of results.filter(
-          (r) => r.success && r.bankResponse
-        )) {
-          await this.saveBankProposal(
-            proposal,
-            result.bankResponse!,
-            result.bankName
-          )
-
-          // Se for fluxo de adicionar banco, atualizar cliente
-          if (proposal.flowType === 'adicionar-banco') {
-            await this.clientRepository.updateBankProposal(
-              proposal.customerCpf,
-              result.bankName,
-              result.proposalId!
-            )
-          }
-        }
-
-        console.log(
-          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
-        )
-      } catch (error) {
-        console.error(`❌ Erro ao persistir dados:`, error)
-        // Se falhar ao persistir, marcar como erro mesmo que o envio tenha funcionado
-        results.forEach((r) => {
-          if (r.success) {
-            r.success = false
-            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-          }
-        })
-      }
-    } else {
-      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
-    }
-
     return {
       success: results.every((r) => r.success),
-      results: results.map((r) => ({
-        bankName: r.bankName,
-        success: r.success,
-        proposalId: r.proposalId,
-        proposalNumber: r.proposalNumber,
-        error: r.error
-      })), // Remover bankResponse da resposta final
+      results,
       clientId,
-      flowType: proposal.flowType
+      flowType: proposal.fluxo
     }
   }
 
@@ -131,101 +94,78 @@ export class SendProposalUseCase {
     )
 
     // Validação das regras de negócio
-    if (!CreditSimulationDomainService.validateBusinessRules(proposal)) {
+    const legacyProposal = this.convertToLegacyFormat(proposal)
+    if (!CreditSimulationDomainService.validateBusinessRules(legacyProposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
-    // 1. PRIMEIRO: Tentar enviar para todos os bancos
-    for (const bankName of bankNames) {
-      try {
-        const bankService = this.findBankService(bankName)
+    try {
+      // Enviar para cada banco
+      for (const bankName of bankNames) {
+        try {
+          const bankService = this.findBankService(bankName)
 
-        console.log(`📤 Enviando proposta para ${bankName}...`)
-        const bankResponse = await bankService.sendProposal(proposal)
+          console.log(`📤 Enviando proposta para ${bankName}...`)
+          const bankResponse = await bankService.sendProposal(proposal)
 
-        results.push({
-          bankName,
-          success: true,
-          proposalId: bankResponse.proposalId,
-          proposalNumber: bankResponse.proposalNumber,
-          bankResponse: bankResponse // Guardar para salvar depois
-        })
+          if (!clientId) {
+            // Save client data only once after first successful proposal
+            clientId = await this.executeFlowLogic(proposal)
+            console.log(
+              `💾 Cliente e detalhes salvos após sucesso no primeiro banco`
+            )
+          }
 
-        console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
-      } catch (error) {
-        console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
+          // Salvar proposta do banco
+          await this.saveBankProposal(proposal, bankResponse, bankName)
+
+          // Se for fluxo de adicionar banco, atualizar cliente
+          if (proposal.fluxo === 'adicionar-banco') {
+            await this.clientRepository.updateBankProposal(
+              CreditProposalMapper.getCleanCpf(proposal),
+              bankName,
+              bankResponse.proposalId
+            )
+          }
+
+          results.push({
+            bankName,
+            success: true,
+            proposalId: bankResponse.proposalId,
+            proposalNumber: bankResponse.proposalNumber
+          })
+
+          console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
+        } catch (error) {
+          console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
+          results.push({
+            bankName,
+            success: false,
+            error: error instanceof Error ? error.message : 'Erro desconhecido'
+          })
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Erro no fluxo principal:`, error)
+      // Se erro no fluxo principal, marcar todos os bancos como erro
+      for (const bankName of bankNames) {
         results.push({
           bankName,
           success: false,
-          error: error instanceof Error ? error.message : 'Erro desconhecido'
+          error:
+            error instanceof Error ? error.message : 'Erro no fluxo principal'
         })
       }
-    }
-
-    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
-    const successfulResults = results.filter((r) => r.success)
-
-    if (successfulResults.length > 0) {
-      try {
-        console.log(
-          `📋 ${successfulResults.length} bancos tiveram sucesso. Persistindo dados...`
-        )
-
-        // Executar fluxo baseado no tipo (salvar cliente, etc.)
-        clientId = await this.executeFlowLogic(proposal)
-
-        // Salvar propostas dos bancos que tiveram sucesso
-        for (const result of successfulResults) {
-          await this.saveBankProposal(
-            proposal,
-            result.bankResponse!,
-            result.bankName
-          )
-
-          // Se for fluxo de adicionar banco, atualizar cliente
-          if (proposal.flowType === 'adicionar-banco') {
-            await this.clientRepository.updateBankProposal(
-              proposal.customerCpf,
-              result.bankName,
-              result.proposalId!
-            )
-          }
-        }
-
-        console.log(
-          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
-        )
-        console.log(
-          `✅ Resumo: ${successfulResults.length}/${bankNames.length} bancos com sucesso`
-        )
-      } catch (error) {
-        console.error(`❌ Erro ao persistir dados:`, error)
-        // Se falhar ao persistir, marcar todos os sucessos como erro
-        results.forEach((r) => {
-          if (r.success) {
-            r.success = false
-            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-          }
-        })
-      }
-    } else {
-      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
     }
 
     return {
-      success: results.some((r) => r.success), // Mudança: sucesso se pelo menos um banco funcionou
-      results: results.map((r) => ({
-        bankName: r.bankName,
-        success: r.success,
-        proposalId: r.proposalId,
-        proposalNumber: r.proposalNumber,
-        error: r.error
-      })), // Remover bankResponse da resposta final
+      success: results.every((r) => r.success),
+      results,
       clientId,
-      flowType: proposal.flowType
+      flowType: proposal.fluxo
     }
   }
 
@@ -234,15 +174,16 @@ export class SendProposalUseCase {
   ): Promise<bigint | undefined> {
     let clientId: bigint | undefined
 
-    switch (proposal.flowType) {
+    switch (proposal.fluxo) {
       case 'normal':
         console.log(`📋 Executando fluxo NORMAL`)
-        // Salvar cliente e detalhes
-        const clientData = await this.clientRepository.save(proposal)
+        // Converter para formato legado e salvar cliente
+        const legacyProposal = this.convertToLegacyFormat(proposal)
+        const clientData = await this.clientRepository.save(legacyProposal)
         clientId = clientData.id
 
         if (clientId) {
-          await this.clientRepository.saveDetails(proposal, clientId)
+          await this.clientRepository.saveDetails(legacyProposal, clientId)
           console.log(`💾 Cliente e detalhes salvos no fluxo normal`)
         }
         break
@@ -251,7 +192,7 @@ export class SendProposalUseCase {
         console.log(`📋 Executando fluxo REENVIO`)
         // Buscar cliente existente
         const existingClient = await this.clientRepository.findByCpf(
-          proposal.customerCpf
+          CreditProposalMapper.getCleanCpf(proposal)
         )
         clientId = existingClient?.id
         console.log(`🔍 Cliente existente encontrado para reenvio: ${clientId}`)
@@ -261,7 +202,7 @@ export class SendProposalUseCase {
         console.log(`📋 Executando fluxo ADICIONAR-BANCO`)
         // Buscar cliente existente
         const existingClientForUpdate = await this.clientRepository.findByCpf(
-          proposal.customerCpf
+          CreditProposalMapper.getCleanCpf(proposal)
         )
         clientId = existingClientForUpdate?.id
         console.log(
@@ -270,7 +211,7 @@ export class SendProposalUseCase {
         break
 
       default:
-        throw new Error(`Tipo de fluxo inválido: ${proposal.flowType}`)
+        throw new Error(`Tipo de fluxo inválido: ${proposal.fluxo}`)
     }
 
     return clientId
@@ -285,18 +226,18 @@ export class SendProposalUseCase {
       switch (bankName.toLowerCase()) {
         case 'itau':
           const itauRepo = RepositoryFactory.createItauProposalRepository()
-          await itauRepo.save(proposal, bankResponse, proposal.flowType)
+          await itauRepo.save(proposal, bankResponse, proposal.fluxo)
           break
 
         case 'inter':
           const interRepo = RepositoryFactory.createInterProposalRepository()
-          await interRepo.save(proposal, bankResponse, proposal.flowType)
+          await interRepo.save(proposal, bankResponse, proposal.fluxo)
           break
 
         // Adicionar outros bancos conforme necessário
         // case 'santander':
         //   const santanderRepo = RepositoryFactory.createSantanderProposalRepository()
-        //   await santanderRepo.save(proposal, bankResponse, proposal.flowType)
+        //   await santanderRepo.save(proposal, bankResponse, proposal.fluxo)
         //   break
 
         default:
@@ -325,5 +266,60 @@ export class SendProposalUseCase {
     }
 
     return bankService
+  }
+
+  // Converte o novo formato CreditProposal para o formato legado para compatibilidade
+  private convertToLegacyFormat(proposal: CreditProposal): any {
+    return {
+      customerCpf: CreditProposalMapper.getCleanCpf(proposal),
+      customerName: proposal.name,
+      customerBirthDate: proposal.birthday,
+      customerEmail: proposal.email,
+      customerPhone: CreditProposalMapper.getCleanPhone(proposal),
+      customerMotherName: proposal.motherName,
+      customerGender: proposal.gender,
+      customerMaritalStatus: proposal.maritalStatus,
+      customerProfession: proposal.profession,
+      customerIncomeType: proposal.workType,
+      customerIncome: CreditProposalMapper.getMonthlyIncomeAsNumber(proposal),
+      customerWorkRegime: proposal.workType,
+
+      documentType: proposal.documentType,
+      documentNumber: proposal.documentNumber,
+      documentIssuer: proposal.documentIssuer,
+      documentIssueDate: proposal.documentIssueDate,
+      documentUf: proposal.ufDataUser,
+
+      customerAddress: {
+        zipCode: proposal.userAddress.cep.replace(/\D/g, ''),
+        street: proposal.userAddress.logradouro,
+        number: proposal.userAddress.number,
+        complement: proposal.userAddress.complement,
+        neighborhood: proposal.userAddress.bairro,
+        city: proposal.userAddress.localidade,
+        state: proposal.userAddress.uf,
+        addressType: 'RESIDENTIAL'
+      },
+
+      productType: proposal.selectedProductOption,
+      propertyType: proposal.propertyType,
+      propertyValue: CreditProposalMapper.getPropertyValueAsNumber(proposal),
+      financingValue: CreditProposalMapper.getFinancedValueAsNumber(proposal),
+      downPayment: CreditProposalMapper.getDownPayment(proposal),
+      installments: CreditProposalMapper.getTermAsNumber(proposal),
+      amortizationType: proposal.amortization.toUpperCase(),
+      financingRate: proposal.financingRate,
+      propertyState: proposal.uf,
+      propertyCity: proposal.cities,
+      useFgts: proposal.useFGTS,
+      fgtsValue: CreditProposalMapper.getFgtsValueAsNumber(proposal),
+      useItbi: proposal.itbiPayment,
+      itbiValue: CreditProposalMapper.getItbiValueAsNumber(proposal),
+
+      flowType: proposal.fluxo,
+      userId: proposal.userId || 1,
+      consultorId: proposal.consultorId,
+      partnerId: proposal.selectedPartnerOption
+    }
   }
 }
