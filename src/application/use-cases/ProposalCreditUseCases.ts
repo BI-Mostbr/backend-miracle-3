@@ -54,11 +54,13 @@ export class SendProposalUseCase {
 
       await this.saveBankProposal(proposal, bankResponse, bankName, clientId)
 
-      if (proposal.fluxo === 'adicionar-banco') {
+      if (proposal.fluxo === 'normal' || proposal.fluxo === 'adicionar-banco') {
+        const bankProposalIdentifier =
+          bankResponse.proposalNumber || bankResponse.proposalId
         await this.proposalClientRepository.updateBankProposal(
           CreditProposalMapper.getCleanCpf(proposal),
           bankName,
-          bankResponse.proposalId
+          bankProposalIdentifier
         )
       }
 

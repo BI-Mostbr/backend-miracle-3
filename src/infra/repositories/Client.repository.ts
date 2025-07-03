@@ -13,7 +13,6 @@ export class ClientRepository implements IProposalClientRepository {
 
   async save(proposal: CreditProposal): Promise<IProposalClientData> {
     try {
-      console.log(`💾 Salvando cliente da proposta - CPF: ${proposal.document}`)
       const clientData = await this.prisma.tb_clientes.create({
         data: {
           cpf: cleanCpf(proposal.document),
@@ -28,7 +27,6 @@ export class ClientRepository implements IProposalClientRepository {
       })
       return clientData
     } catch (error) {
-      console.error('❌ Erro ao salvar cliente da proposta:', error)
       throw new Error(
         `Falha ao salvar cliente da proposta: ${(error as Error).message}`
       )
@@ -45,18 +43,18 @@ export class ClientRepository implements IProposalClientRepository {
       const downPayment = propertyValue - financedValue
       const clientDetails = await this.prisma.clientes_detalhes.create({
         data: {
-          cpf_cnpj: BigInt(cleanCpf(proposal.document).replace(/\D/g, '')),
+          cpf_cnpj: null,
           nome: proposal.name,
-          estado_civil: proposal.maritalStatus,
+          estado_civil: proposal.maritalStatus.toLocaleUpperCase(),
           nacionalidade: 'BRASILEIRA',
-          tipo_imovel: proposal.propertyType,
-          sexo: proposal.gender,
-          tipo_contato: 'Celular',
+          tipo_imovel: proposal.propertyType.toLocaleUpperCase(),
+          sexo: proposal.gender.toLocaleUpperCase(),
+          tipo_contato: 'CELULAR',
           rg: proposal.documentNumber,
-          tipo_endereco: 'Residencial',
-          tipo_renda: proposal.workType,
-          tipo_amortizacao: proposal.amortization,
-          tipo_taxa_financiamento: proposal.financingRate,
+          tipo_endereco: 'RESIDENCIAL',
+          tipo_renda: proposal.workType.toLocaleUpperCase(),
+          tipo_amortizacao: proposal.amortization.toLocaleUpperCase(),
+          tipo_taxa_financiamento: proposal.financingRate.toLocaleUpperCase(),
           UF_proponente: proposal.ufDataUser,
           CEP: proposal.userAddress?.cep?.replace(/\D/g, '') || null,
           valor_entrada: downPayment,
@@ -84,7 +82,7 @@ export class ClientRepository implements IProposalClientRepository {
             : null,
           dt_nasc: convertDateBrToIso(proposal.birthday),
           nome_mae: proposal.motherName,
-          orgao_expedidor: proposal.documentIssuer,
+          orgao_expedidor: proposal.documentIssuer.toLocaleUpperCase(),
           uf_rg: proposal.ufDataUser,
           data_emissao_rg: proposal.documentIssueDate || null,
           nr_contato: proposal.phone.replace(/\D/g, ''),
@@ -95,14 +93,14 @@ export class ClientRepository implements IProposalClientRepository {
           complemento_endereco: proposal.userAddress?.complement || null,
           cidade_endereco: proposal.userAddress?.localidade || null,
           profissao: proposal.profession,
-          regime_trabalho: proposal.workType,
+          regime_trabalho: proposal.workType.toLocaleUpperCase(),
           cnpj_empresa_cliente: null,
           nome_empresa: null,
           dados_bancarios: null,
           data_admissao: null,
           outras_rendas: null,
           vlr_renda_mensal: cleanMoney(proposal.monthlyIncome),
-          estado_civil_cliente: proposal.maritalStatus,
+          estado_civil_cliente: proposal.maritalStatus.toLocaleUpperCase(),
           regime_casamento: proposal.matrimonialRegime || null,
           segundo_proponente: !!proposal.spouse,
           uniao_estavel: proposal.maritalStatus.toLowerCase().includes('união'),
@@ -121,7 +119,7 @@ export class ClientRepository implements IProposalClientRepository {
           vlr_solicitado: financedValue,
           vlr_fgts: proposal.fgtsValue ? cleanMoney(proposal.fgtsValue) : 0,
           id_profissao: null,
-          tipo_documento: proposal.documentType,
+          tipo_documento: proposal.documentType.toLocaleUpperCase(),
           cargo: proposal.professionalPosition || null,
           tipo_residencia: 'PROPRIA',
           agencia: proposal.agency ? BigInt(proposal.agency) : null,
@@ -195,7 +193,6 @@ export class ClientRepository implements IProposalClientRepository {
         }
       })
     } catch (error) {
-      console.error('❌ Erro ao atualizar proposta bancária:', error)
       throw error
     }
   }
