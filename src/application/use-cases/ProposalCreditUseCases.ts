@@ -1,8 +1,12 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
-import { CreditSimulationDomainService } from '@domain/services/CreditSimulationDomain.service'
+import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
-import { IBankProposalApiService, IClientRepository } from '@infra/interfaces'
+import { IBankProposalApiService } from '@infra/interfaces'
+import { IProposalClientRepository } from '@infra/interfaces/ProposalClientRepository.interface'
 import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
+import { ItauApiService } from '@domain/services/itau/ItauApiService'
+import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauProposalDetails.mapper'
+import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
 
 export interface ProposalResult {
   bankName: string
@@ -22,19 +26,21 @@ export interface SendProposalResult {
 export class SendProposalUseCase {
   constructor(
     private bankServices: IBankProposalApiService[],
-    private clientRepository: IClientRepository
+    private proposalClientRepository: IProposalClientRepository
   ) {}
 
   async sendToSpecificBank(
     proposal: CreditProposal,
     bankName: string
   ): Promise<SendProposalResult> {
-    console.log(`🚀 Iniciando envio de proposta para ${bankName}`)
-
-    // Validação das regras de negócio usando dados convertidos
-    const legacyProposal = this.convertToLegacyFormat(proposal)
-    if (!CreditSimulationDomainService.validateBusinessRules(legacyProposal)) {
+    if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
+    }
+
+    if (!ProposalDomainService.validateForBank(proposal, bankName)) {
+      throw new Error(
+        `Proposta não atende às regras específicas do ${bankName}`
+      )
     }
 
     const bankService = this.findBankService(bankName)
@@ -42,18 +48,14 @@ export class SendProposalUseCase {
     let clientId: bigint | undefined
 
     try {
-      // Enviar proposta para o banco
       const bankResponse = await bankService.sendProposal(proposal)
 
-      // Save client data only after a successful proposal
       clientId = await this.executeFlowLogic(proposal)
 
-      // Salvar proposta do banco
-      await this.saveBankProposal(proposal, bankResponse, bankName)
+      await this.saveBankProposal(proposal, bankResponse, bankName, clientId)
 
-      // Se for fluxo de adicionar banco, atualizar cliente
       if (proposal.fluxo === 'adicionar-banco') {
-        await this.clientRepository.updateBankProposal(
+        await this.proposalClientRepository.updateBankProposal(
           CreditProposalMapper.getCleanCpf(proposal),
           bankName,
           bankResponse.proposalId
@@ -66,10 +68,7 @@ export class SendProposalUseCase {
         proposalId: bankResponse.proposalId,
         proposalNumber: bankResponse.proposalNumber
       })
-
-      console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
     } catch (error) {
-      console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
       results.push({
         bankName,
         success: false,
@@ -89,13 +88,7 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankNames: string[]
   ): Promise<SendProposalResult> {
-    console.log(
-      `🚀 Iniciando envio de proposta para múltiplos bancos: ${bankNames.join(', ')}`
-    )
-
-    // Validação das regras de negócio
-    const legacyProposal = this.convertToLegacyFormat(proposal)
-    if (!CreditSimulationDomainService.validateBusinessRules(legacyProposal)) {
+    if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
@@ -103,28 +96,29 @@ export class SendProposalUseCase {
     let clientId: bigint | undefined
 
     try {
-      // Enviar para cada banco
       for (const bankName of bankNames) {
         try {
-          const bankService = this.findBankService(bankName)
-
-          console.log(`📤 Enviando proposta para ${bankName}...`)
-          const bankResponse = await bankService.sendProposal(proposal)
-
-          if (!clientId) {
-            // Save client data only once after first successful proposal
-            clientId = await this.executeFlowLogic(proposal)
-            console.log(
-              `💾 Cliente e detalhes salvos após sucesso no primeiro banco`
+          if (!ProposalDomainService.validateForBank(proposal, bankName)) {
+            throw new Error(
+              `Proposta não atende às regras específicas do ${bankName}`
             )
           }
 
-          // Salvar proposta do banco
-          await this.saveBankProposal(proposal, bankResponse, bankName)
+          const bankService = this.findBankService(bankName)
+          const bankResponse = await bankService.sendProposal(proposal)
 
-          // Se for fluxo de adicionar banco, atualizar cliente
+          if (!clientId) {
+            clientId = await this.executeFlowLogic(proposal)
+          }
+          await this.saveBankProposal(
+            proposal,
+            bankResponse,
+            bankName,
+            clientId
+          )
+
           if (proposal.fluxo === 'adicionar-banco') {
-            await this.clientRepository.updateBankProposal(
+            await this.proposalClientRepository.updateBankProposal(
               CreditProposalMapper.getCleanCpf(proposal),
               bankName,
               bankResponse.proposalId
@@ -137,10 +131,7 @@ export class SendProposalUseCase {
             proposalId: bankResponse.proposalId,
             proposalNumber: bankResponse.proposalNumber
           })
-
-          console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
         } catch (error) {
-          console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
           results.push({
             bankName,
             success: false,
@@ -149,8 +140,6 @@ export class SendProposalUseCase {
         }
       }
     } catch (error) {
-      console.error(`❌ Erro no fluxo principal:`, error)
-      // Se erro no fluxo principal, marcar todos os bancos como erro
       for (const bankName of bankNames) {
         results.push({
           bankName,
@@ -176,38 +165,27 @@ export class SendProposalUseCase {
 
     switch (proposal.fluxo) {
       case 'normal':
-        console.log(`📋 Executando fluxo NORMAL`)
-        // Converter para formato legado e salvar cliente
-        const legacyProposal = this.convertToLegacyFormat(proposal)
-        const clientData = await this.clientRepository.save(legacyProposal)
+        const clientData = await this.proposalClientRepository.save(proposal)
         clientId = clientData.id
 
         if (clientId) {
-          await this.clientRepository.saveDetails(legacyProposal, clientId)
-          console.log(`💾 Cliente e detalhes salvos no fluxo normal`)
+          await this.proposalClientRepository.saveDetails(proposal, clientId)
         }
         break
 
       case 'reenvio':
-        console.log(`📋 Executando fluxo REENVIO`)
-        // Buscar cliente existente
-        const existingClient = await this.clientRepository.findByCpf(
+        const existingClient = await this.proposalClientRepository.findByCpf(
           CreditProposalMapper.getCleanCpf(proposal)
         )
         clientId = existingClient?.id
-        console.log(`🔍 Cliente existente encontrado para reenvio: ${clientId}`)
         break
 
       case 'adicionar-banco':
-        console.log(`📋 Executando fluxo ADICIONAR-BANCO`)
-        // Buscar cliente existente
-        const existingClientForUpdate = await this.clientRepository.findByCpf(
-          CreditProposalMapper.getCleanCpf(proposal)
-        )
+        const existingClientForUpdate =
+          await this.proposalClientRepository.findByCpf(
+            CreditProposalMapper.getCleanCpf(proposal)
+          )
         clientId = existingClientForUpdate?.id
-        console.log(
-          `🔍 Cliente existente encontrado para adicionar banco: ${clientId}`
-        )
         break
 
       default:
@@ -220,25 +198,22 @@ export class SendProposalUseCase {
   private async saveBankProposal(
     proposal: CreditProposal,
     bankResponse: BankProposalResponse,
-    bankName: string
+    bankName: string,
+    clientId?: bigint
   ): Promise<void> {
     try {
       switch (bankName.toLowerCase()) {
         case 'itau':
-          const itauRepo = RepositoryFactory.createItauProposalRepository()
-          await itauRepo.save(proposal, bankResponse, proposal.fluxo)
+          await this.saveItauProposal(proposal, bankResponse, clientId)
           break
 
         case 'inter':
-          const interRepo = RepositoryFactory.createInterProposalRepository()
-          await interRepo.save(proposal, bankResponse, proposal.fluxo)
+          await this.saveInterProposal(proposal, bankResponse)
           break
 
-        // Adicionar outros bancos conforme necessário
-        // case 'santander':
-        //   const santanderRepo = RepositoryFactory.createSantanderProposalRepository()
-        //   await santanderRepo.save(proposal, bankResponse, proposal.fluxo)
-        //   break
+        case 'santander':
+          console.log(`⚠️ Santander repository não implementado ainda`)
+          break
 
         default:
           console.warn(
@@ -247,12 +222,52 @@ export class SendProposalUseCase {
           break
       }
     } catch (error) {
-      console.error(
-        `❌ Erro ao salvar proposta na tabela do ${bankName}:`,
-        error
-      )
       throw error
     }
+  }
+
+  private async saveItauProposal(
+    proposal: CreditProposal,
+    bankResponse: BankProposalResponse,
+    clientId?: bigint
+  ): Promise<void> {
+    const itauService = this.findBankService('itau') as ItauApiService
+    const itauRepo = RepositoryFactory.createItauProposalRepository()
+    const deParaRepo = RepositoryFactory.createDeParaRepository()
+
+    try {
+      const proposalDetails = await itauService.getProposalDetails(
+        bankResponse.proposalNumber!
+      )
+      const mappedDetails = await ItauProposalDetailsMapper.mapFromItauResponse(
+        proposalDetails,
+        proposal,
+        deParaRepo,
+        clientId
+      )
+      await itauRepo.save(mappedDetails, clientId)
+    } catch (error) {
+      const basicDetails: ItauProposalDetails = {
+        id_proposta: bankResponse.proposalNumber || bankResponse.proposalId,
+        status_global: 'ENVIADO',
+        id_cliente_most: clientId || null,
+        id_status_most: null,
+        id_situacao_most: null,
+        proposal_uuid: bankResponse.proposalId,
+        proposta_copiada: false,
+        id_produto: this.getProductIdForItau(proposal.selectedProductOption)
+      }
+
+      await itauRepo.save(basicDetails, clientId)
+    }
+  }
+
+  private async saveInterProposal(
+    proposal: CreditProposal,
+    bankResponse: BankProposalResponse
+  ): Promise<void> {
+    const interRepo = RepositoryFactory.createInterProposalRepository()
+    await interRepo.save(proposal, bankResponse, proposal.fluxo)
   }
 
   private findBankService(bankName: string): IBankProposalApiService {
@@ -268,58 +283,13 @@ export class SendProposalUseCase {
     return bankService
   }
 
-  // Converte o novo formato CreditProposal para o formato legado para compatibilidade
-  private convertToLegacyFormat(proposal: CreditProposal): any {
-    return {
-      customerCpf: CreditProposalMapper.getCleanCpf(proposal),
-      customerName: proposal.name,
-      customerBirthDate: proposal.birthday,
-      customerEmail: proposal.email,
-      customerPhone: CreditProposalMapper.getCleanPhone(proposal),
-      customerMotherName: proposal.motherName,
-      customerGender: proposal.gender,
-      customerMaritalStatus: proposal.maritalStatus,
-      customerProfession: proposal.profession,
-      customerIncomeType: proposal.workType,
-      customerIncome: CreditProposalMapper.getMonthlyIncomeAsNumber(proposal),
-      customerWorkRegime: proposal.workType,
-
-      documentType: proposal.documentType,
-      documentNumber: proposal.documentNumber,
-      documentIssuer: proposal.documentIssuer,
-      documentIssueDate: proposal.documentIssueDate,
-      documentUf: proposal.ufDataUser,
-
-      customerAddress: {
-        zipCode: proposal.userAddress.cep.replace(/\D/g, ''),
-        street: proposal.userAddress.logradouro,
-        number: proposal.userAddress.number,
-        complement: proposal.userAddress.complement,
-        neighborhood: proposal.userAddress.bairro,
-        city: proposal.userAddress.localidade,
-        state: proposal.userAddress.uf,
-        addressType: 'RESIDENTIAL'
-      },
-
-      productType: proposal.selectedProductOption,
-      propertyType: proposal.propertyType,
-      propertyValue: CreditProposalMapper.getPropertyValueAsNumber(proposal),
-      financingValue: CreditProposalMapper.getFinancedValueAsNumber(proposal),
-      downPayment: CreditProposalMapper.getDownPayment(proposal),
-      installments: CreditProposalMapper.getTermAsNumber(proposal),
-      amortizationType: proposal.amortization.toUpperCase(),
-      financingRate: proposal.financingRate,
-      propertyState: proposal.uf,
-      propertyCity: proposal.cities,
-      useFgts: proposal.useFGTS,
-      fgtsValue: CreditProposalMapper.getFgtsValueAsNumber(proposal),
-      useItbi: proposal.itbiPayment,
-      itbiValue: CreditProposalMapper.getItbiValueAsNumber(proposal),
-
-      flowType: proposal.fluxo,
-      userId: proposal.userId || 1,
-      consultorId: proposal.consultorId,
-      partnerId: proposal.selectedPartnerOption
+  private getProductIdForItau(productOption: string): bigint {
+    const productMap: { [key: string]: bigint } = {
+      ISOLADO: BigInt(1),
+      PILOTO: BigInt(2),
+      REPASSE: BigInt(3),
+      PORTABILIDADE: BigInt(4)
     }
+    return productMap[productOption] || BigInt(1)
   }
 }

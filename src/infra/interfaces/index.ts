@@ -7,16 +7,6 @@ export { IItauSimulationRepository } from './ItauSimulationRepository.interface'
 export { ISantanderSimulationData } from './SantanderSimulationData.interface'
 export { ISantanderSimulationRepository } from './SantanderSimulationRepository.interface'
 export { IBankProposalApiService } from './BankProposalApiService.interface'
-export {
-  IItauProposalRepository,
-  IItauProposalData
-} from './ItauProposalRepository.interface'
-export {
-  IInterProposalRepository,
-  IInterProposalData
-} from './InterProposalRepository.interface'
-export {
-  IClientRepository,
-  IClientData,
-  IClientDetailsData
-} from './ClientRepository.interface'
+export * from './ItauProposalRepository.interface'
+export * from './InterProposalRepository.interface'
+export * from './ProposalClientRepository.interface'
