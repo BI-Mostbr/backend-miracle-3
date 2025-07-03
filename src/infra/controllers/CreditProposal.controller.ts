@@ -1,6 +1,3 @@
-// src/infra/controllers/CreditProposal.controller.ts
-// 🔍 VERSÃO DEBUG: Com logs detalhados para identificar onde falha
-
 import { Request, Response } from 'express'
 import { SendProposalUseCase } from '@application/use-cases/ProposalCreditUseCases'
 import { CreditProposal } from '@domain/entities'
@@ -13,15 +10,19 @@ export class CreditProposalController {
     try {
       const { bankName } = req.params
       const proposalData: CreditProposal = req.body
+
       try {
         const result = await this.useCase.sendToSpecificBank(
           proposalData,
           bankName
         )
-        const frontendResponse = ProposalResponseMapper.mapSingleBankResponse(
-          proposalData,
-          result
-        )
+
+        const frontendResponse =
+          await ProposalResponseMapper.mapSingleBankResponse(
+            proposalData,
+            result
+          )
+
         const statusCode = result.success ? 200 : 400
         res.status(statusCode).json(frontendResponse)
       } catch (useCaseError) {
@@ -49,14 +50,17 @@ export class CreditProposalController {
         })
         return
       }
+
       const result = await this.useCase.sendToMultipleBanks(
         proposalData,
         bankNames
       )
-      const frontendResponse = ProposalResponseMapper.mapMultipleBanksResponse(
-        proposalData,
-        result
-      )
+
+      const frontendResponse =
+        await ProposalResponseMapper.mapMultipleBanksResponse(
+          proposalData,
+          result
+        )
 
       res.status(200).json(frontendResponse)
     } catch (error) {
@@ -97,18 +101,18 @@ export class CreditProposalController {
   ) {
     return {
       data: {
-        cpf: proposal.document || '',
+        cpf: proposal.document?.replace(/\D/g, '') || '',
         nome: proposal.name || '',
         ofertas: [
           {
-            url: 'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_error.png',
+            url: '',
             id: '0',
             banco: bankName,
             status: 'Erro no Processamento',
             credito_solicitado: 'R$ 0,00',
             credito_aprovado: 'R$ 0,00',
             taxa_juros: '0.00',
-            observacao: [errorMessage]
+            observacao: [`Erro: ${errorMessage}`]
           }
         ]
       }

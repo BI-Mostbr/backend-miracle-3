@@ -4,6 +4,7 @@ import {
   ProposalResult
 } from '@application/use-cases/ProposalCreditUseCases'
 import { CreditProposalMapper } from './CreditProposal.mapper'
+import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import {
   ProposalApiResponse,
   ProposalOferta,
@@ -13,12 +14,14 @@ import {
 } from '@infra/dtos/ProposalResponse.dto'
 
 export class ProposalResponseMapper {
-  static mapToFrontendResponse(
+  static async mapToFrontendResponse(
     proposal: CreditProposal,
     result: SendProposalResult
-  ): ProposalApiResponse {
-    const ofertas: ProposalOferta[] = result.results.map((bankResult, index) =>
-      this.mapBankResultToOferta(proposal, bankResult, index)
+  ): Promise<ProposalApiResponse> {
+    const ofertas: ProposalOferta[] = await Promise.all(
+      result.results.map((bankResult, index) =>
+        this.mapBankResultToOferta(proposal, bankResult, index)
+      )
     )
 
     return {
@@ -30,22 +33,40 @@ export class ProposalResponseMapper {
     }
   }
 
-  private static mapBankResultToOferta(
+  private static async mapBankResultToOferta(
     proposal: CreditProposal,
     bankResult: ProposalResult,
     index: number
-  ): ProposalOferta {
+  ): Promise<ProposalOferta> {
     const bankNameLower = bankResult.bankName.toLowerCase()
+
     const creditoSolicitado = this.formatCurrency(
       CreditProposalMapper.getFinancedValueAsNumber(proposal)
     )
+
     const creditoAprovado = bankResult.success ? creditoSolicitado : 'R$ 0,00'
     const taxaJuros = bankResult.success
       ? this.getTaxaJuros(proposal, bankNameLower)
       : '0.00'
-    const status = bankResult.success
-      ? STATUS_MAPPING['ENVIADO'] || 'Aguardando Processamento'
-      : STATUS_MAPPING['ERRO'] || 'Erro no Processamento'
+
+    let status = 'Erro no Processamento'
+    if (bankResult.success) {
+      try {
+        const deParaRepo = RepositoryFactory.createDeParaRepository()
+        const statusResult = await deParaRepo.getProposalStatusByCpfAndBank(
+          CreditProposalMapper.getCleanCpf(proposal),
+          bankResult.bankName
+        )
+
+        status = statusResult.situacao
+      } catch (error) {
+        console.error(
+          `Erro ao buscar situação para ${bankResult.bankName}:`,
+          error
+        )
+        status = 'Enviado'
+      }
+    }
 
     const observacao = bankResult.success
       ? [
@@ -54,7 +75,7 @@ export class ProposalResponseMapper {
       : [`Erro: ${bankResult.error || 'Erro desconhecido'}`]
 
     return {
-      url: BANK_LOGOS[bankNameLower] || BANK_LOGOS['bradesco'], // fallback
+      url: BANK_LOGOS[bankNameLower] || BANK_LOGOS['bradesco'],
       id: BANK_IDS[bankNameLower] || (index + 1).toString(),
       banco: this.formatBankName(bankResult.bankName),
       status,
@@ -66,6 +87,15 @@ export class ProposalResponseMapper {
   }
 
   private static formatCurrency(value: number): string {
+    if (isNaN(value) || value === null || value === undefined) {
+      console.warn('Valor inválido para formatação:', value)
+      return 'R$ 0,00'
+    }
+
+    if (value > 10000000) {
+      value = value / 100
+    }
+
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
@@ -99,6 +129,7 @@ export class ProposalResponseMapper {
       bb: '11.80',
       caixa: '10.50'
     }
+
     if (proposal.financingRate && proposal.financingRate !== 'PRE_FIXADA') {
       const rateMatch = proposal.financingRate.match(/(\d+\.?\d*)/)
       if (rateMatch) {
@@ -108,17 +139,18 @@ export class ProposalResponseMapper {
 
     return defaultRates[bankName] || '13.50'
   }
-  static mapSingleBankResponse(
+
+  static async mapSingleBankResponse(
     proposal: CreditProposal,
     result: SendProposalResult
-  ): ProposalApiResponse {
-    return this.mapToFrontendResponse(proposal, result)
+  ): Promise<ProposalApiResponse> {
+    return await this.mapToFrontendResponse(proposal, result)
   }
 
-  static mapMultipleBanksResponse(
+  static async mapMultipleBanksResponse(
     proposal: CreditProposal,
     result: SendProposalResult
-  ): ProposalApiResponse {
-    return this.mapToFrontendResponse(proposal, result)
+  ): Promise<ProposalApiResponse> {
+    return await this.mapToFrontendResponse(proposal, result)
   }
 }
