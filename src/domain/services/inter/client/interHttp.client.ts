@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import { InterSimulationPayload } from '../types/interSimulationPayload.type'
+import { InterProposalPayload } from '../types/InterProposalPayload.type'
 
 export class InterHtppClient {
   private readonly axiosInstance: AxiosInstance
@@ -63,12 +64,14 @@ export class InterHtppClient {
     }
 
     try {
-      console.log('✨ InterHttpClient: Enviando proposta')
-      const response = await this.axiosInstance.post(
-        '/proposta/criar',
-        payload,
-        { headers }
-      )
+      console.log('📡 InterHttpClient: Enviando proposta')
+      console.log('📋 Payload da proposta:', JSON.stringify(payload, null, 2))
+
+      const response = await this.axiosInstance.post('/propostas', payload, {
+        headers
+      })
+
+      console.log('✅ Resposta do Inter:', response.data)
       return response.data
     } catch (error) {
       console.error('❌ Erro ao enviar proposta para o Inter:', error)
