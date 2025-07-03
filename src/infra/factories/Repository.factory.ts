@@ -1,5 +1,3 @@
-// src/infra/factories/Repository.factory.ts - Updated
-
 import { ISantanderSimulationRepository } from '@infra/interfaces'
 import { ClientRepository } from '@infra/repositories/Client.repository'
 import { DeParaRepository } from '@infra/repositories/DePara.repository'

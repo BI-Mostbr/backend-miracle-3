@@ -1,6 +1,6 @@
 import { CreditProposal } from '@domain/entities'
 
-export interface IClientData {
+export interface IProposalClientData {
   id?: bigint
   created_at?: Date | null
   cpf: string
@@ -27,7 +27,7 @@ export interface IClientData {
   id_cliente_incorporador?: bigint | null
 }
 
-export interface IClientDetailsData {
+export interface IProposalClientDetailsData {
   id?: bigint
   created_at?: Date | null
   cpf_cnpj?: bigint | null
@@ -106,16 +106,27 @@ export interface IClientDetailsData {
   percent_itbi_number?: number | null
 }
 
-export interface IClientRepository {
-  save(proposal: CreditProposal): Promise<IClientData>
+export interface IProposalClientRepository {
+  save(proposal: CreditProposal): Promise<IProposalClientData>
+
   saveDetails(
     proposal: CreditProposal,
     clientId: bigint
-  ): Promise<IClientDetailsData>
-  findByCpf(cpf: string): Promise<IClientData | null>
+  ): Promise<IProposalClientDetailsData>
+
+  findByCpf(cpf: string): Promise<IProposalClientData | null>
+
   updateBankProposal(
     cpf: string,
     bankName: string,
     proposalId: string
+  ): Promise<void>
+
+  findDetailsByCpf(cpf: string): Promise<IProposalClientDetailsData | null>
+
+  updateProposalStatus(
+    cpf: string,
+    bankName: string,
+    status: string
   ): Promise<void>
 }
