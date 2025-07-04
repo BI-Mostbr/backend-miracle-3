@@ -29,16 +29,34 @@ export class ItauValidationStrategy extends BaseBankValidationStrategy {
     }
   }
 
+  // ========== OVERRIDE DAS VALIDAÇÕES BASE ==========
+
+  protected validateLTV(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    // ⚠️ NÃO FAZER NADA - Nossa validação customizada cuida disso
+    // Isso evita a dupla validação que estava causando o problema
+  }
+
+  protected validateTerm(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    // ⚠️ NÃO FAZER NADA - Nossa validação customizada cuida disso
+    // Isso evita a dupla validação que estava causando o problema
+  }
+
   protected validateCustomRules(
     proposal: CreditProposal,
     result: ValidationResult
   ): void {
     console.log('🔍 Aplicando regras essenciais do Itaú...')
 
-    // REGRA 1: LTV por tipo de imóvel
+    // REGRA 1: LTV por tipo de imóvel (NOSSA validação customizada)
     this.validateLTVByPropertyType(proposal, result)
 
-    // REGRA 2: Prazos por tipo de imóvel
+    // REGRA 2: Prazos por tipo de imóvel (NOSSA validação customizada)
     this.validateTermByPropertyType(proposal, result)
   }
 

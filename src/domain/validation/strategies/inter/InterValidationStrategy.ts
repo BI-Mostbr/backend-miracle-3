@@ -29,6 +29,24 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
     }
   }
 
+  // ========== OVERRIDE DAS VALIDAÇÕES BASE ==========
+
+  protected validateLTV(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    // ⚠️ NÃO FAZER NADA - Nossa validação customizada cuida disso
+    // Isso evita a dupla validação que estava causando o problema
+  }
+
+  protected validateTerm(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    // ⚠️ NÃO FAZER NADA - Nossa validação customizada cuida disso
+    // Isso evita a dupla validação que estava causando o problema
+  }
+
   protected validateCustomRules(
     proposal: CreditProposal,
     result: ValidationResult
@@ -38,8 +56,11 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
     // REGRA 1: Valor mínimo do imóvel (bloqueia se menor que 200k)
     this.validateMinimumPropertyValue(proposal, result)
 
-    // REGRA 2: LTV por tipo de imóvel
+    // REGRA 2: LTV por tipo de imóvel (NOSSA validação customizada)
     this.validateLTVByPropertyType(proposal, result)
+
+    // REGRA 3: Prazo (NOSSA validação customizada)
+    this.validateTermLimits(proposal, result)
   }
 
   protected adjustCustomFields(proposal: CreditProposal): void {
@@ -106,6 +127,31 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
     }
   }
 
+  private validateTermLimits(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    const term = CreditProposalMapper.getTermAsNumber(proposal)
+
+    if (term < this.limits.term.min) {
+      result.errors.push({
+        code: 'TERM_TOO_SHORT',
+        field: 'term',
+        message: `Inter: Prazo ${term} meses é menor que o mínimo de ${this.limits.term.min} meses`,
+        severity: 'warning' // Permite ajuste
+      })
+    }
+
+    if (term > this.limits.term.max) {
+      result.errors.push({
+        code: 'TERM_TOO_LONG',
+        field: 'term',
+        message: `Inter: Prazo ${term} meses excede máximo de ${this.limits.term.max} meses`,
+        severity: 'warning' // Permite ajuste
+      })
+    }
+  }
+
   private adjustLTVByPropertyType(proposal: CreditProposal): void {
     const propertyType = proposal.propertyType?.toLowerCase() || 'residencial'
     const currentLTV = this.calculateLTV(proposal)
@@ -135,11 +181,17 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
   private adjustMaxTerm(proposal: CreditProposal): void {
     const currentTerm = CreditProposalMapper.getTermAsNumber(proposal)
 
+    if (currentTerm < this.limits.term.min) {
+      proposal.term = this.limits.term.min.toString()
+      console.log(
+        `🔧 Inter: Prazo ajustado de ${currentTerm} para ${this.limits.term.min} meses (mínimo)`
+      )
+    }
+
     if (currentTerm > this.limits.term.max) {
       proposal.term = this.limits.term.max.toString()
-
       console.log(
-        `🔧 Inter: Prazo ajustado de ${currentTerm} para ${this.limits.term.max} meses`
+        `🔧 Inter: Prazo ajustado de ${currentTerm} para ${this.limits.term.max} meses (máximo)`
       )
     }
   }
