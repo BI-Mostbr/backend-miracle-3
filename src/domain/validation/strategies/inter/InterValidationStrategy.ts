@@ -1,5 +1,6 @@
 import { CreditProposal } from '@domain/entities'
 import { BaseBankValidationStrategy } from '../base/BaseBankValidationStrategy'
+import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
 import {
   BankLimits,
   ValidationResult
@@ -11,20 +12,20 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
   public readonly limits: BankLimits = {
     ltv: {
       min: 0,
-      max: 75, // LTV máximo 75% para imóveis residenciais
+      max: 75, // Residencial: máximo 75%
       propertyTypes: ['residencial', 'casa', 'apartamento']
     },
     term: {
-      min: 24, // Prazo mínimo 24 meses
-      max: 360 // Prazo máximo 360 meses
+      min: 24, // Mínimo 24 meses
+      max: 360 // Máximo 360 meses
     },
     propertyValue: {
-      min: 200000, // Valor mínimo R$ 200.000
-      max: undefined // Sem limite máximo
+      min: 200000, // Mínimo R$ 200.000 (BLOQUEIA se menor)
+      max: undefined
     },
     income: {
-      min: 1500, // Renda mínima R$ 1.500 (exemplo)
-      multiplier: 5 // Até 5x a renda (exemplo)
+      min: 1000,
+      multiplier: 5
     }
   }
 
@@ -32,236 +33,114 @@ export class InterValidationStrategy extends BaseBankValidationStrategy {
     proposal: CreditProposal,
     result: ValidationResult
   ): void {
-    console.log('🔍 Aplicando regras específicas do Inter...')
+    console.log('🔍 Aplicando regras essenciais do Inter...')
 
-    // Regra 1: Verificar tipo de imóvel para LTV
+    // REGRA 1: Valor mínimo do imóvel (bloqueia se menor que 200k)
+    this.validateMinimumPropertyValue(proposal, result)
+
+    // REGRA 2: LTV por tipo de imóvel
     this.validateLTVByPropertyType(proposal, result)
-
-    // Regra 2: Validar compatibilidade renda vs financiamento
-    this.validateIncomeCompatibility(proposal, result)
-
-    // Regra 3: Regras específicas por região (exemplo)
-    this.validateRegionalRules(proposal, result)
   }
 
   protected adjustCustomFields(proposal: CreditProposal): void {
-    console.log('🔧 Aplicando ajustes específicos do Inter...')
+    console.log('🔧 Aplicando ajustes essenciais do Inter...')
 
-    // Ajuste específico: Se apartamento, pode ter LTV um pouco maior
+    // AJUSTE 1: LTV automático se maior que limite
     this.adjustLTVByPropertyType(proposal)
+
+    // AJUSTE 2: Prazo automático se maior que 360
+    this.adjustMaxTerm(proposal)
   }
 
   protected canAdjustCustomField(
     proposal: CreditProposal,
     field: string
   ): boolean {
-    switch (field) {
-      case 'propertyType':
-        return false // Tipo de imóvel não pode ser ajustado
-      case 'region':
-        return false // Região não pode ser ajustada
-      default:
-        return false
-    }
+    // Só permite ajustar valor financiado e prazo
+    return field === 'financedValue' || field === 'term'
   }
 
-  // ========== REGRAS ESPECÍFICAS DO INTER ==========
+  // ========== REGRAS ESSENCIAIS DO INTER ==========
+
+  private validateMinimumPropertyValue(
+    proposal: CreditProposal,
+    result: ValidationResult
+  ): void {
+    const propertyValue =
+      CreditProposalMapper.getPropertyValueAsNumber(proposal)
+
+    if (propertyValue < this.limits.propertyValue.min) {
+      result.errors.push({
+        code: 'PROPERTY_VALUE_TOO_LOW',
+        field: 'propertyValue',
+        message: `Inter não aceita imóveis com valor inferior a R$ ${this.limits.propertyValue.min.toLocaleString()}. Valor informado: ${this.formatCurrency(propertyValue)}`,
+        severity: 'blocking' // Esta regra BLOQUEIA, não ajusta
+      })
+    }
+  }
 
   private validateLTVByPropertyType(
     proposal: CreditProposal,
     result: ValidationResult
   ): void {
-    const propertyType = proposal.propertyType?.toLowerCase()
+    const propertyType = proposal.propertyType?.toLowerCase() || 'residencial'
     const ltv = this.calculateLTV(proposal)
 
-    // Regra específica: Casas têm limite menor que apartamentos
-    let maxLTVForType = this.limits.ltv.max
+    let maxLTV = 75 // Padrão residencial
 
-    switch (propertyType) {
-      case 'casa':
-      case 'casa_residencial':
-        maxLTVForType = 70 // Casas: máximo 70%
-        break
-      case 'apartamento':
-      case 'apartamento_residencial':
-        maxLTVForType = 75 // Apartamentos: máximo 75%
-        break
-      case 'comercial':
-        maxLTVForType = 60 // Comercial: máximo 60%
-        break
+    // Determinar limite por tipo
+    if (propertyType.includes('comercial')) {
+      maxLTV = 60 // Comercial: máximo 60%
+    } else {
+      maxLTV = 75 // Residencial: máximo 75%
     }
 
-    if (ltv > maxLTVForType) {
-      result.warnings.push({
-        code: 'LTV_BY_PROPERTY_TYPE',
+    if (ltv > maxLTV) {
+      // Marcar como ERROR com severity 'warning' para poder ser ajustado
+      result.errors.push({
+        code: 'LTV_EXCEEDS_LIMIT',
         field: 'ltv',
-        message: `LTV para ${propertyType} no Inter é limitado a ${maxLTVForType}% (atual: ${ltv.toFixed(2)}%)`,
-        recommendation: `Ajustar valor financiado para ${maxLTVForType}%`
+        message: `Inter: LTV ${ltv.toFixed(2)}% excede limite de ${maxLTV}% para imóvel ${propertyType}`,
+        severity: 'warning' // Permite ajuste
       })
-    }
-  }
-
-  private validateIncomeCompatibility(
-    proposal: CreditProposal,
-    result: ValidationResult
-  ): void {
-    if (!this.limits.income?.multiplier) return
-
-    const income = this.getMonthlyIncomeAsNumber(proposal)
-    const financedValue = this.getFinancedValueAsNumber(proposal)
-    const maxFinancing = income * this.limits.income.multiplier
-
-    if (financedValue > maxFinancing) {
-      result.errors.push({
-        code: 'FINANCING_EXCEEDS_INCOME_MULTIPLE',
-        field: 'financedValue',
-        message: `Valor financiado (${this.formatCurrency(financedValue)}) excede ${this.limits.income.multiplier}x a renda mensal`,
-        severity: 'blocking'
-      })
-    }
-  }
-
-  private validateRegionalRules(
-    proposal: CreditProposal,
-    result: ValidationResult
-  ): void {
-    const state = proposal.uf?.toUpperCase()
-
-    // Exemplo: Inter não opera em alguns estados
-    const restrictedStates = ['AC', 'RR', 'AP'] // Exemplo
-
-    if (restrictedStates.includes(state || '')) {
-      result.errors.push({
-        code: 'RESTRICTED_STATE',
-        field: 'uf',
-        message: `Inter não opera no estado: ${state}`,
-        severity: 'blocking'
-      })
-    }
-
-    // Exemplo: Valores mínimos diferentes por região
-    const propertyValue = this.getPropertyValueAsNumber(proposal)
-    const metropolitanAreas = ['SP', 'RJ', 'MG', 'RS', 'PR', 'SC']
-
-    if (metropolitanAreas.includes(state || '')) {
-      const minValueMetropolitan = 300000 // R$ 300.000 em regiões metropolitanas
-
-      if (propertyValue < minValueMetropolitan) {
-        result.errors.push({
-          code: 'MIN_VALUE_METROPOLITAN',
-          field: 'propertyValue',
-          message: `Valor mínimo para ${state} é ${this.formatCurrency(minValueMetropolitan)}`,
-          severity: 'blocking'
-        })
-      }
     }
   }
 
   private adjustLTVByPropertyType(proposal: CreditProposal): void {
-    const propertyType = proposal.propertyType?.toLowerCase()
-    const ltv = this.calculateLTV(proposal)
-    const propertyValue = this.getPropertyValueAsNumber(proposal)
+    const propertyType = proposal.propertyType?.toLowerCase() || 'residencial'
+    const currentLTV = this.calculateLTV(proposal)
 
-    let maxLTVForType = this.limits.ltv.max
+    let maxLTV = 75 // Padrão residencial
 
-    switch (propertyType) {
-      case 'casa':
-      case 'casa_residencial':
-        maxLTVForType = 70
-        break
-      case 'apartamento':
-      case 'apartamento_residencial':
-        maxLTVForType = 75
-        break
-      case 'comercial':
-        maxLTVForType = 60
-        break
+    if (propertyType.includes('comercial')) {
+      maxLTV = 60
     }
 
-    if (ltv > maxLTVForType) {
-      const newFinancedValue = (propertyValue * maxLTVForType) / 100
+    if (currentLTV > maxLTV) {
+      const propertyValue =
+        CreditProposalMapper.getPropertyValueAsNumber(proposal)
+      const newFinancedValue = (propertyValue * maxLTV) / 100
+
       proposal.financedValue = this.formatCurrency(newFinancedValue)
 
       console.log(
-        `🔧 LTV ajustado para ${propertyType}: ${ltv.toFixed(2)}% → ${maxLTVForType}%`
+        `🔧 Inter: LTV ajustado de ${currentLTV.toFixed(2)}% para ${maxLTV}% (${propertyType})`
+      )
+      console.log(
+        `   Valor financiado ajustado para: ${this.formatCurrency(newFinancedValue)}`
       )
     }
   }
 
-  // ========== MÉTODOS AUXILIARES ==========
+  private adjustMaxTerm(proposal: CreditProposal): void {
+    const currentTerm = CreditProposalMapper.getTermAsNumber(proposal)
 
-  private getMonthlyIncomeAsNumber(proposal: CreditProposal): number {
-    if (!proposal.monthlyIncome) return 0
-    return (
-      parseFloat(
-        proposal.monthlyIncome
-          .replace(/[R$\s.,]/g, '')
-          .replace(/(\d)(\d{2})$/, '$1.$2')
-      ) || 0
-    )
-  }
+    if (currentTerm > this.limits.term.max) {
+      proposal.term = this.limits.term.max.toString()
 
-  private getFinancedValueAsNumber(proposal: CreditProposal): number {
-    if (!proposal.financedValue) return 0
-    return (
-      parseFloat(
-        proposal.financedValue
-          .replace(/[R$\s.,]/g, '')
-          .replace(/(\d)(\d{2})$/, '$1.$2')
-      ) || 0
-    )
-  }
-
-  private getPropertyValueAsNumber(proposal: CreditProposal): number {
-    if (!proposal.propertyValue) return 0
-    return (
-      parseFloat(
-        proposal.propertyValue
-          .replace(/[R$\s.,]/g, '')
-          .replace(/(\d)(\d{2})$/, '$1.$2')
-      ) || 0
-    )
-  }
-
-  // ========== MÉTODOS PÚBLICOS ESPECÍFICOS DO INTER ==========
-
-  /**
-   * Verifica se o Inter aceita o tipo de imóvel
-   */
-  public acceptsPropertyType(propertyType: string): boolean {
-    const acceptedTypes = [
-      'residencial',
-      'casa',
-      'apartamento',
-      'casa_residencial',
-      'apartamento_residencial'
-    ]
-    return acceptedTypes.includes(propertyType?.toLowerCase())
-  }
-
-  /**
-   * Retorna o LTV máximo para um tipo específico de imóvel
-   */
-  public getMaxLTVForPropertyType(propertyType: string): number {
-    switch (propertyType?.toLowerCase()) {
-      case 'casa':
-      case 'casa_residencial':
-        return 70
-      case 'apartamento':
-      case 'apartamento_residencial':
-        return 75
-      case 'comercial':
-        return 60
-      default:
-        return this.limits.ltv.max
+      console.log(
+        `🔧 Inter: Prazo ajustado de ${currentTerm} para ${this.limits.term.max} meses`
+      )
     }
-  }
-
-  /**
-   * Verifica se o Inter opera no estado
-   */
-  public operatesInState(state: string): boolean {
-    const restrictedStates = ['AC', 'RR', 'AP']
-    return !restrictedStates.includes(state?.toUpperCase())
   }
 }
