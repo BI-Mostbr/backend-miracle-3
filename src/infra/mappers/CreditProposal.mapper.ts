@@ -220,45 +220,63 @@ export class CreditProposalMapper {
   }
 
   static getPropertyValueAsNumber(proposal: CreditProposal): number {
-    return (
-      parseFloat(
-        proposal.propertyValue.replace(/[R$\s.,]/g, '').replace(',', '.')
-      ) || 0
-    )
+    if (!proposal.propertyValue) return 0
+
+    // Corrigir a conversão: remover R$, espaços e pontos (separadores de milhar), depois trocar vírgula por ponto
+    const cleanValue = proposal.propertyValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
   }
 
   static getFinancedValueAsNumber(proposal: CreditProposal): number {
-    return (
-      parseFloat(
-        proposal.financedValue.replace(/[R$\s.,]/g, '').replace(',', '.')
-      ) || 0
-    )
+    if (!proposal.financedValue) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.financedValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
   }
 
   static getMonthlyIncomeAsNumber(proposal: CreditProposal): number {
-    return (
-      parseFloat(
-        proposal.monthlyIncome.replace(/[R$\s.,]/g, '').replace(',', '.')
-      ) || 0
-    )
+    if (!proposal.monthlyIncome) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.monthlyIncome
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
   }
 
   static getFgtsValueAsNumber(proposal: CreditProposal): number {
     if (!proposal.fgtsValue) return 0
-    return (
-      parseFloat(
-        proposal.fgtsValue.replace(/[R$\s.,]/g, '').replace(',', '.')
-      ) || 0
-    )
+
+    // Mesma correção
+    const cleanValue = proposal.fgtsValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
   }
 
   static getItbiValueAsNumber(proposal: CreditProposal): number {
     if (!proposal.itbiValue) return 0
-    return (
-      parseFloat(
-        proposal.itbiValue.replace(/[R$\s.,]/g, '').replace(',', '.')
-      ) || 0
-    )
+
+    // Mesma correção
+    const cleanValue = proposal.itbiValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
   }
 
   static getTermAsNumber(proposal: CreditProposal): number {
