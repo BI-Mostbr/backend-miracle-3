@@ -212,7 +212,7 @@ export const BankNameProposalParamSchema = z.object({
 })
 export const MultipleBanksProposalRequestSchema =
   CreditProposalRequestSchema.extend({
-    bankNames: z
+    selectedBanks: z
       .array(z.string().min(1, 'Nome do banco não pode estar vazio'))
       .min(1, 'Pelo menos um banco deve ser especificado')
       .max(5, 'Máximo de 5 bancos permitidos')

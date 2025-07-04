@@ -12,19 +12,19 @@ export function createCreditProposalRoutes(
 ): Router {
   const router = Router()
   router.post(
+    '/proposal/multiple',
+    ValidationMiddleware.validateRequest(MultipleBanksProposalRequestSchema),
+    async (req, res) => {
+      await controller.sendToMultipleBanks(req, res)
+    }
+  )
+
+  router.post(
     '/proposal/:bankName',
     ValidationMiddleware.validateParams(BankNameProposalParamSchema),
     ValidationMiddleware.validateRequest(CreditProposalRequestSchema),
     async (req, res) => {
       await controller.sendToSpecificBank(req, res)
-    }
-  )
-
-  router.post(
-    '/proposal/multiple',
-    ValidationMiddleware.validateRequest(MultipleBanksProposalRequestSchema),
-    async (req, res) => {
-      await controller.sendToMultipleBanks(req, res)
     }
   )
 

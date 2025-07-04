@@ -40,16 +40,16 @@ export class ProposalResponseMapper {
   ): Promise<ProposalOferta> {
     const bankNameLower = bankResult.bankName.toLowerCase()
 
-    const creditoSolicitado = this.formatCurrency(
-      CreditProposalMapper.getFinancedValueAsNumber(proposal)
-    )
+    // Usar valor ajustado se disponível, senão usar valor original da proposta
+    const creditoSolicitadoValue = bankResult.adjustedFinancedValue
+      ? CreditProposalMapper.parseMoneyString(bankResult.adjustedFinancedValue)
+      : CreditProposalMapper.getFinancedValueAsNumber(proposal)
 
-    const creditoAprovado = bankResult.success ? creditoSolicitado : 'R$ 0,00'
-    const taxaJuros = bankResult.success
-      ? this.getTaxaJuros(proposal, bankNameLower)
-      : '0.00'
+    const creditoSolicitado = this.formatCurrency(creditoSolicitadoValue)
 
+    let creditoAprovado = 'R$ 0,00'
     let status = 'Erro no Processamento'
+
     if (bankResult.success) {
       try {
         const deParaRepo = RepositoryFactory.createDeParaRepository()
@@ -59,6 +59,10 @@ export class ProposalResponseMapper {
         )
 
         status = statusResult.situacao
+
+        if (status === 'APROVADO') {
+          creditoAprovado = creditoSolicitado
+        }
       } catch (error) {
         console.error(
           `Erro ao buscar situação para ${bankResult.bankName}:`,
@@ -68,11 +72,11 @@ export class ProposalResponseMapper {
       }
     }
 
-    const observacao = bankResult.success
-      ? [
-          `Proposta enviada com sucesso - ID: ${bankResult.proposalId || bankResult.proposalNumber}`
-        ]
-      : [`Erro: ${bankResult.error || 'Erro desconhecido'}`]
+    const taxaJuros = bankResult.success
+      ? this.getTaxaJuros(proposal, bankNameLower)
+      : '0.00'
+
+    const observacao = this.buildObservacao(bankResult)
 
     return {
       url: BANK_LOGOS[bankNameLower] || BANK_LOGOS['bradesco'],
@@ -84,6 +88,47 @@ export class ProposalResponseMapper {
       taxa_juros: taxaJuros,
       observacao
     }
+  }
+
+  private static buildObservacao(bankResult: ProposalResult): string[] {
+    if (!bankResult.success) {
+      return [`Erro: ${bankResult.error || 'Erro desconhecido'}`]
+    }
+
+    if (!bankResult.adjustments || bankResult.adjustments.length === 0) {
+      return []
+    }
+
+    const observacoes: string[] = []
+
+    bankResult.adjustments.forEach((adjustment: any) => {
+      switch (adjustment.fieldName) {
+        case 'financedValue':
+          observacoes.push(
+            `Valor financiado ajustado de ${adjustment.originalValue} para ${adjustment.adjustedValue} (LTV máximo: ${this.extractLtvFromReason(adjustment.adjustmentReason)})`
+          )
+          break
+        case 'term':
+          observacoes.push(
+            `Prazo ajustado de ${adjustment.originalValue} para ${adjustment.adjustedValue} meses`
+          )
+          break
+        case 'propertyValue':
+          observacoes.push(
+            `Valor do imóvel ajustado de ${adjustment.originalValue} para ${adjustment.adjustedValue}`
+          )
+          break
+        default:
+          observacoes.push(adjustment.adjustmentReason)
+      }
+    })
+
+    return observacoes
+  }
+
+  private static extractLtvFromReason(reason: string): string {
+    const match = reason.match(/LTV máximo de (\d+)%/)
+    return match ? `${match[1]}%` : ''
   }
 
   private static formatCurrency(value: number): string {

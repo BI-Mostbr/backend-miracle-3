@@ -1,5 +1,4 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
-import { ProposalDomainService } from '@domain/validation/services/ProposalDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { IBankProposalApiService } from '@infra/interfaces'
 import { IProposalClientRepository } from '@infra/interfaces/ProposalClientRepository.interface'
@@ -7,6 +6,7 @@ import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
 import { ItauApiService } from '@domain/services/itau/ItauApiService'
 import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauProposalDetails.mapper'
 import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
+import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
 
 export interface ProposalResult {
   bankName: string
@@ -14,6 +14,9 @@ export interface ProposalResult {
   proposalId?: string
   proposalNumber?: string
   error?: string
+  adjustments?: any[] // NOVO: Ajustes aplicados
+  originalFinancedValue?: string // NOVO: Valor original antes do ajuste
+  adjustedFinancedValue?: string // NOVO: Valor após ajuste
 }
 
 export interface SendProposalResult {
@@ -21,6 +24,8 @@ export interface SendProposalResult {
   results: ProposalResult[]
   clientId?: bigint
   flowType: string
+  totalAdjustments?: number // NOVO: Total de ajustes aplicados
+  summary?: string // NOVO: Resumo das operações
 }
 
 export class SendProposalUseCase {
@@ -33,56 +38,98 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankName: string
   ): Promise<SendProposalResult> {
+    // 1. Validação básica
     if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
-    if (!ProposalDomainService.validateForBank(proposal, bankName)) {
+    // 2. Validação e ajuste específico do banco
+    const validationResult = ProposalDomainService.validateAndAdjustForBank(
+      proposal,
+      bankName
+    )
+
+    if (!validationResult.success) {
       throw new Error(
-        `Proposta não atende às regras específicas do ${bankName}`
+        `Proposta não atende às regras do ${bankName}: ${validationResult.errors.join(', ')}`
       )
     }
 
+    // 3. Guardar valores originais para comparação
+    const originalFinancedValue = proposal.financedValue
+
+    // 4. Usar a proposta ajustada para envio
+    const adjustedProposal = validationResult.adjustedProposal || proposal
     const bankService = this.findBankService(bankName)
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
     try {
-      const bankResponse = await bankService.sendProposal(proposal)
+      // 5. Enviar proposta ajustada para o banco
+      const bankResponse = await bankService.sendProposal(adjustedProposal)
 
-      clientId = await this.executeFlowLogic(proposal)
+      clientId = await this.executeFlowLogic(adjustedProposal)
 
-      await this.saveBankProposal(proposal, bankResponse, bankName, clientId)
+      await this.saveBankProposal(
+        adjustedProposal,
+        bankResponse,
+        bankName,
+        clientId
+      )
 
-      if (proposal.fluxo === 'normal' || proposal.fluxo === 'adicionar-banco') {
+      if (
+        adjustedProposal.fluxo === 'normal' ||
+        adjustedProposal.fluxo === 'adicionar-banco'
+      ) {
         const bankProposalIdentifier =
           bankResponse.proposalNumber || bankResponse.proposalId
         await this.proposalClientRepository.updateBankProposal(
-          CreditProposalMapper.getCleanCpf(proposal),
+          CreditProposalMapper.getCleanCpf(adjustedProposal),
           bankName,
           bankProposalIdentifier
         )
       }
 
+      // 6. Incluir informações de ajuste no resultado
       results.push({
         bankName,
         success: true,
         proposalId: bankResponse.proposalId,
-        proposalNumber: bankResponse.proposalNumber
+        proposalNumber: bankResponse.proposalNumber,
+        adjustments: validationResult.adjustments || [],
+        originalFinancedValue: originalFinancedValue,
+        adjustedFinancedValue: adjustedProposal.financedValue
       })
+
+      return {
+        success: true,
+        results,
+        clientId,
+        flowType: adjustedProposal.fluxo,
+        totalAdjustments: validationResult.adjustments?.length || 0,
+        summary:
+          validationResult.adjustments?.length > 0
+            ? `Proposta enviada com ${validationResult.adjustments.length} ajuste(s)`
+            : 'Proposta enviada sem ajustes'
+      }
     } catch (error) {
       results.push({
         bankName,
         success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        adjustments: validationResult.adjustments || [],
+        originalFinancedValue: originalFinancedValue,
+        adjustedFinancedValue: adjustedProposal.financedValue
       })
-    }
 
-    return {
-      success: results.every((r) => r.success),
-      results,
-      clientId,
-      flowType: proposal.fluxo
+      return {
+        success: false,
+        results,
+        clientId,
+        flowType: adjustedProposal.fluxo,
+        totalAdjustments: validationResult.adjustments?.length || 0,
+        summary: 'Erro no envio da proposta'
+      }
     }
   }
 
@@ -90,73 +137,117 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankNames: string[]
   ): Promise<SendProposalResult> {
+    // 1. Validação básica
     if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
+    // 2. Validação e ajuste para múltiplos bancos
+    const multiValidation =
+      ProposalDomainService.validateAndAdjustForMultipleBanks(
+        proposal,
+        bankNames
+      )
+
+    if (!multiValidation.canProceed) {
+      throw new Error(
+        `Proposta não pode prosseguir: ${multiValidation.errors.join(', ')}`
+      )
+    }
+
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
+    let totalAdjustments = 0
 
-    try {
-      for (const bankName of bankNames) {
-        try {
-          if (!ProposalDomainService.validateForBank(proposal, bankName)) {
-            throw new Error(
-              `Proposta não atende às regras específicas do ${bankName}`
-            )
-          }
+    // 3. Enviar para cada banco válido usando a proposta ajustada específica
+    for (const bankName of multiValidation.validBanks) {
+      try {
+        const bankService = this.findBankService(bankName)
+        const adjustedProposal = multiValidation.adjustedProposals[bankName]
+        const bankAdjustments =
+          multiValidation.results[bankName]?.adjustments || []
 
-          const bankService = this.findBankService(bankName)
-          const bankResponse = await bankService.sendProposal(proposal)
-
-          if (!clientId) {
-            clientId = await this.executeFlowLogic(proposal)
-          }
-          await this.saveBankProposal(
-            proposal,
-            bankResponse,
-            bankName,
-            clientId
-          )
-
-          if (proposal.fluxo === 'adicionar-banco') {
-            await this.proposalClientRepository.updateBankProposal(
-              CreditProposalMapper.getCleanCpf(proposal),
-              bankName,
-              bankResponse.proposalId
-            )
-          }
-
-          results.push({
-            bankName,
-            success: true,
-            proposalId: bankResponse.proposalId,
-            proposalNumber: bankResponse.proposalNumber
-          })
-        } catch (error) {
-          results.push({
-            bankName,
-            success: false,
-            error: error instanceof Error ? error.message : 'Erro desconhecido'
-          })
+        // Executar lógica de fluxo apenas uma vez
+        if (!clientId) {
+          clientId = await this.executeFlowLogic(adjustedProposal)
         }
-      }
-    } catch (error) {
-      for (const bankName of bankNames) {
+
+        const bankResponse = await bankService.sendProposal(adjustedProposal)
+
+        await this.saveBankProposal(
+          adjustedProposal,
+          bankResponse,
+          bankName,
+          clientId
+        )
+
+        if (
+          adjustedProposal.fluxo === 'normal' ||
+          adjustedProposal.fluxo === 'adicionar-banco'
+        ) {
+          const bankProposalIdentifier =
+            bankResponse.proposalNumber || bankResponse.proposalId
+          await this.proposalClientRepository.updateBankProposal(
+            CreditProposalMapper.getCleanCpf(adjustedProposal),
+            bankName,
+            bankProposalIdentifier
+          )
+        }
+
+        totalAdjustments += bankAdjustments.length
+
+        results.push({
+          bankName,
+          success: true,
+          proposalId: bankResponse.proposalId,
+          proposalNumber: bankResponse.proposalNumber,
+          adjustments: bankAdjustments,
+          originalFinancedValue: proposal.financedValue,
+          adjustedFinancedValue: adjustedProposal.financedValue
+        })
+      } catch (error) {
+        console.error(`Erro ao enviar proposta para ${bankName}:`, error)
+        const bankAdjustments =
+          multiValidation.results[bankName]?.adjustments || []
+        totalAdjustments += bankAdjustments.length
+
         results.push({
           bankName,
           success: false,
-          error:
-            error instanceof Error ? error.message : 'Erro no fluxo principal'
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          adjustments: bankAdjustments,
+          originalFinancedValue: proposal.financedValue,
+          adjustedFinancedValue:
+            multiValidation.adjustedProposals[bankName]?.financedValue ||
+            proposal.financedValue
         })
       }
     }
 
+    // 4. Adicionar bancos rejeitados aos resultados
+    multiValidation.invalidBanks.forEach((bankName) => {
+      const bankErrors = multiValidation.errors
+        .filter((error) => error.startsWith(`${bankName}:`))
+        .map((error) => error.replace(`${bankName}: `, ''))
+        .join(', ')
+
+      results.push({
+        bankName,
+        success: false,
+        error: bankErrors || 'Proposta não atende aos critérios do banco',
+        adjustments: [],
+        originalFinancedValue: proposal.financedValue,
+        adjustedFinancedValue: proposal.financedValue
+      })
+    })
+
     return {
-      success: results.every((r) => r.success),
+      success: results.some((r) => r.success),
       results,
       clientId,
-      flowType: proposal.fluxo
+      flowType: proposal.fluxo,
+      totalAdjustments,
+      summary: `${multiValidation.validBanks.length}/${bankNames.length} banco(s) aprovaram. ${totalAdjustments} ajuste(s) aplicado(s)`
     }
   }
 
