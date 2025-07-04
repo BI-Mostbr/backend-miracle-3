@@ -1,5 +1,5 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
-import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
+import { ProposalDomainService } from '@domain/validation/services/ProposalDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import { IBankProposalApiService } from '@infra/interfaces'
 import { IProposalClientRepository } from '@infra/interfaces/ProposalClientRepository.interface'
