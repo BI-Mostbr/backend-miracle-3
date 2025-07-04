@@ -150,7 +150,7 @@ export const CreditProposalRequestSchema = z.object({
   maritalStatus: z.string().min(1, 'Estado civil é obrigatório'),
   matrimonialRegime: z.string().optional(),
   marriageDate: z.string().optional(),
-  cepBankAgency: z.string().min(8, 'CEP deve ter 8 dígitos'),
+  cepBankAgency: z.string().min(8, 'CEP deve ter 8 dígitos').optional(),
   agencyBank: z.string().optional(),
   account: z.string().optional(),
   accountId: z.string().optional(),
