@@ -68,30 +68,66 @@ export class InterApiService implements IBankApiService {
 
   async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
     try {
-      console.log(`✨ Enviando proposta para o ${this.getBankName()}...`)
+      console.log('🏦 Iniciando envio de proposta para o Inter')
+      console.log('📋 CPF do cliente:', proposal.document)
 
       const accessToken = await this.authService.getAccessToken()
+      console.log('🔐 Token de acesso obtido')
+
       const interPayload = InterProposalPayloadMapper.convertToPayload(proposal)
+      console.log('📋 Payload da proposta convertido')
+
       const interResponse = await this.httpClient.sendProposal(
         interPayload,
         accessToken
       )
-      const bankResponse =
-        InterProposalResponseMapper.convertToInternalResponse(
-          interResponse,
-          proposal
-        )
 
-      console.log(
-        `✅ Proposta enviada com sucesso para o ${this.getBankName()}`
-      )
-      return bankResponse
+      const mappedResponse =
+        InterProposalResponseMapper.mapToInternalResponse(interResponse)
+
+      console.log('✅ Proposta Inter enviada com sucesso')
+      console.log('📄 ID da proposta:', mappedResponse.proposalId)
+
+      return mappedResponse
     } catch (error) {
       console.error(
         `❌ Erro ao enviar proposta para o ${this.getBankName()}:`,
         error
       )
-      return this.handleTokenError(error, () => this.sendProposal(proposal))
+
+      if (
+        error instanceof Error &&
+        error.message.includes('Bearer token inválido')
+      ) {
+        try {
+          console.log('🔄 Tentando renovar token e reenviar proposta')
+          const newAccessToken = await this.authService.getAccessToken()
+          const interPayload =
+            InterProposalPayloadMapper.convertToPayload(proposal)
+          const retryResponse = await this.httpClient.sendProposal(
+            interPayload,
+            newAccessToken
+          )
+          return InterProposalResponseMapper.mapToInternalResponse(
+            retryResponse
+          )
+        } catch (retryError) {
+          console.error(`❌ Erro ao tentar reenviar a proposta:`, retryError)
+          throw retryError
+        }
+      }
+
+      return {
+        bankName: this.getBankName(),
+        proposalId: '',
+        status: 'ERRO',
+        bankSpecificData: {
+          inter: {
+            idProposta: '',
+            idSimulacao: ''
+          }
+        }
+      }
     }
   }
 

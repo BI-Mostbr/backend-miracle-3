@@ -1,62 +1,49 @@
 export interface CreditProposal {
-  // Controle de fluxo
   fluxo: 'normal' | 'reenvio' | 'adicionar-banco'
   consultorId: number
   userId?: number
   partnerId?: string
-
-  // Bancos selecionados
   selectedBanks: string[] // ['itau', 'santander', 'bradesco', 'cef', 'inter']
-
-  // Produto e parceiro
-  selectedProductOption: string // ISOLADO, PILOTO, REPASSE, PORTABILIDADE
+  selectedProductOption: string
   selectedPartnerOption?: string
-
-  // Dados do imóvel
-  propertyValue: string // "R$ 400.000,00"
-  financedValue: string // "R$ 200.000,00"
-  term: string // "200"
+  propertyValue: string
+  financedValue: string
+  term: string
   useFGTS: boolean
   fgtsValue?: string
   itbiPayment: boolean
   itbiValue?: string
-  amortization: string // sac, price
-  propertyType: string // residencial, comercial
+  amortization: string
+  propertyType: string
   uf: string
   cities?: string
-  situation: string // novo, usado
-  financingRate: string // padrao, poupanca
+  situation: string
+  financingRate: string
   propertyTypeResidenceInfo?: string
-
-  // Dados do cliente principal
-  document: string // CPF formatado: "996.591.970-47"
+  document: string
   name: string
-  birthday: string // "20/10/2000"
-  phone: string // "(33) 17254-9801"
+  birthday: string
+  phone: string
   email: string
   motherName: string
   gender: 'masculino' | 'feminino'
-  documentType: string // rg, cnh, etc
+  documentType: string
   documentNumber: string
-  documentIssuer: string // ssp, detran, etc
-  documentIssueDate: string // "20/10/2000"
+  documentIssuer: string
+  documentIssueDate: string
   ufDataUser: string
-  monthlyIncome: string // "R$ 2.000,00"
+  monthlyIncome: string
   profession: string
-  workType: string // assalariado, autonomo, etc
+  workType: string
   professionalPosition: string
-  maritalStatus: string // solteiro, casado, divorciado, viuvo
+  maritalStatus: string
   matrimonialRegime?: string
   marriageDate?: string
-
-  // Dados bancários
   cepBankAgency: string
   agencyBank?: string
   account?: string
   accountId?: string
   agency?: string
-
-  // Endereço do usuário
   userAddress: {
     cep: string
     logradouro: string
@@ -75,7 +62,6 @@ export interface CreditProposal {
     complement?: string
   }
 
-  // Informações de segurança (bancos disponíveis)
   security?: {
     bank: Array<{
       name: string
@@ -83,7 +69,6 @@ export interface CreditProposal {
     }>
   }
 
-  // Dados do cônjuge
   spouse?: {
     document: string
     name: string
@@ -111,7 +96,6 @@ export interface CreditProposal {
     monthlyIncome: string
     professionalPosition: string
     civilStatus: string
-    // Campos adicionais do endereço
     complemento?: string
     unidade?: string
     uf: string
@@ -123,7 +107,6 @@ export interface CreditProposal {
     siafi: string
   }
 
-  // Segundo proponente
   secondProponent?: {
     document: string
     name: string
@@ -151,8 +134,6 @@ export interface CreditProposal {
     monthlyIncome: string
     professionalPosition: string
     civilStatus: string
-
-    // Cônjuge do segundo proponente
     spouseSecondProponent?: {
       document: string
       name: string
@@ -183,7 +164,6 @@ export interface CreditProposal {
     }
   }
 
-  // Dados específicos para construção (PILOTO/REPASSE)
   construction?: {
     businessPersonId: string
     enterpriseId: string
@@ -191,7 +171,6 @@ export interface CreditProposal {
     unitId?: string
   }
 
-  // Dados específicos para portabilidade
   portability?: {
     outstandingBalance: number
     remainingPeriod: number
