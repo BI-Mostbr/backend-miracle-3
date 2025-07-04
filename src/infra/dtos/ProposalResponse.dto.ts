@@ -42,16 +42,14 @@ export const BANK_LOGOS: { [key: string]: string } = {
     'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_santander.png',
   bradesco:
     'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_bradesco.png',
-  bb: 'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_bb.png',
   caixa:
     'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_caixa.png'
 }
 
 export const BANK_IDS: { [key: string]: string } = {
   itau: '1',
-  inter: '2',
-  santander: '3',
-  bradesco: '4',
-  bb: '5',
-  caixa: '6'
+  santander: '2',
+  bradesco: '3',
+  caixa: '4',
+  inter: '5'
 }

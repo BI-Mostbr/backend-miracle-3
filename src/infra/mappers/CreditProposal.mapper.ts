@@ -295,4 +295,14 @@ export class CreditProposalMapper {
     const [day, month, year] = birthday.split('/')
     return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
   }
+
+  static parseMoneyString(value: string): number {
+    if (!value) return 0
+    const cleanValue = value
+      .replace(/[R$\s]/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.')
+
+    return parseFloat(cleanValue) || 0
+  }
 }

@@ -42,18 +42,23 @@ export class CreditProposalController {
   async sendToMultipleBanks(req: Request, res: Response): Promise<void> {
     try {
       const proposalData: CreditProposal = req.body
-      const { bankNames } = req.body
+      const { selectedBanks } = req.body
 
-      if (!bankNames || !Array.isArray(bankNames) || bankNames.length === 0) {
+      if (
+        !selectedBanks ||
+        !Array.isArray(selectedBanks) ||
+        selectedBanks.length === 0
+      ) {
         res.status(400).json({
-          error: 'Campo bankNames é obrigatório e deve ser um array não vazio'
+          error:
+            'Campo selectedBanks é obrigatório e deve ser um array não vazio'
         })
         return
       }
 
       const result = await this.useCase.sendToMultipleBanks(
         proposalData,
-        bankNames
+        selectedBanks
       )
 
       const frontendResponse =

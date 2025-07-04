@@ -34,7 +34,7 @@ export class ItauProposalDetailsMapper {
         }
       } catch (error) {
         console.warn(
-          `⚠️ Não foi possível mapear status '${statusGlobal}' para o Itaú:`,
+          `Não foi possível mapear status '${statusGlobal}' para o Itaú:`,
           error
         )
       }
