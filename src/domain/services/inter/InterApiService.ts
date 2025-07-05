@@ -75,7 +75,7 @@ export class InterApiService implements IBankApiService {
       console.log('🔐 Token de acesso obtido')
 
       const interPayload = InterProposalPayloadMapper.convertToPayload(proposal)
-      console.log('📋 Payload da proposta convertido')
+      console.log('📋 Payload da proposta convertido', interPayload)
 
       const interResponse = await this.httpClient.sendProposal(
         interPayload,

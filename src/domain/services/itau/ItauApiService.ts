@@ -147,6 +147,7 @@ export class ItauApiService
         proposal,
         consultorData
       )
+      console.log('payload itau:', itauPayload)
       const itauResponse = await this.httpClient.sendProposal(
         itauPayload,
         accessToken
