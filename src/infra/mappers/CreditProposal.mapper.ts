@@ -14,141 +14,178 @@ export class CreditProposalMapper {
     }
 
     const proposal: CreditProposal = {
-      // Dados do cliente principal
-      customerCpf: cleanCpf(request.document),
-      customerName: request.name,
-      customerBirthDate: request.birthday,
-      customerEmail: request.email,
-      customerPhone: request.phone.replace(/\D/g, ''),
-      customerMotherName: request.motherName,
-      customerGender: request.gender,
-      customerMaritalStatus: request.maritalStatus,
-      customerProfession: request.profession,
-      customerIncomeType: request.workType,
-      customerIncome: cleanMoneyValue(request.monthlyIncome),
-      customerWorkRegime: request.workType,
+      // Controle de fluxo
+      fluxo: request.fluxo,
+      consultorId: request.consultorId,
+      userId: request.userId,
+      partnerId: request.partnerId,
 
-      // Documentos do cliente
+      // Bancos selecionados
+      selectedBanks: request.selectedBanks,
+
+      // Produto e parceiro
+      selectedProductOption: request.selectedProductOption,
+      selectedPartnerOption: request.selectedPartnerOption,
+
+      // Dados do imóvel
+      propertyValue: request.propertyValue,
+      financedValue: request.financedValue,
+      term: request.term,
+      useFGTS: request.useFGTS,
+      fgtsValue: request.fgtsValue,
+      itbiPayment: request.itbiPayment,
+      itbiValue: request.itbiValue,
+      amortization: request.amortization,
+      propertyType: request.propertyType,
+      uf: request.uf,
+      cities: request.cities,
+      situation: request.situation,
+      financingRate: request.financingRate,
+      propertyTypeResidenceInfo: request.propertyTypeResidenceInfo,
+
+      // Dados do cliente principal
+      document: request.document,
+      name: request.name,
+      birthday: request.birthday,
+      phone: request.phone,
+      email: request.email,
+      motherName: request.motherName,
+      gender: request.gender,
       documentType: request.documentType,
       documentNumber: request.documentNumber,
       documentIssuer: request.documentIssuer,
       documentIssueDate: request.documentIssueDate,
-      documentUf: request.ufDataUser,
+      ufDataUser: request.ufDataUser,
+      monthlyIncome: request.monthlyIncome,
+      profession: request.profession,
+      workType: request.workType,
+      professionalPosition: request.professionalPosition,
+      maritalStatus: request.maritalStatus,
+      matrimonialRegime: request.matrimonialRegime,
+      marriageDate: request.marriageDate,
 
-      // Endereço do cliente
-      customerAddress: {
-        zipCode: request.cepBankAgency.replace(/\D/g, ''),
-        street: '',
-        number: '',
-        neighborhood: '',
-        city: request.cities || '',
-        state: request.uf,
-        addressType: 'RESIDENTIAL'
+      // Dados bancários
+      cepBankAgency: request.cepBankAgency,
+      agencyBank: request.agencyBank,
+      account: request.account,
+      accountId: request.accountId,
+      agency: request.agency,
+
+      // Endereço do usuário
+      userAddress: {
+        cep: request.userAddress?.cep || request.cepBankAgency,
+        logradouro: request.userAddress?.logradouro || '',
+        complemento: request.userAddress?.complemento,
+        unidade: request.userAddress?.unidade,
+        bairro: request.userAddress?.bairro || '',
+        localidade: request.userAddress?.localidade || request.cities || '',
+        uf: request.userAddress?.uf || request.uf,
+        estado: request.userAddress?.estado || '',
+        regiao: request.userAddress?.regiao || '',
+        ibge: request.userAddress?.ibge || '',
+        gia: request.userAddress?.gia || '',
+        ddd: request.userAddress?.ddd || '',
+        siafi: request.userAddress?.siafi || '',
+        number: request.userAddress?.number || '',
+        complement: request.userAddress?.complement
       },
 
-      // Dados da proposta
-      productType: request.selectedProductOption,
-      propertyType: request.propertyType,
-      propertyValue: cleanMoneyValue(request.propertyValue),
-      financingValue: cleanMoneyValue(request.financedValue),
-      downPayment:
-        cleanMoneyValue(request.propertyValue) -
-        cleanMoneyValue(request.financedValue),
-      installments: parseInt(request.term),
-      amortizationType: request.amortization.toUpperCase(),
-      financingRate: request.financingRate,
-      propertyState: request.uf,
-      propertyCity: request.cities,
-      useFgts: request.useFGTS,
-      fgtsValue: request.fgtsValue ? cleanMoneyValue(request.fgtsValue) : 0,
-      useItbi: request.itbiPayment,
-      itbiValue: request.itbiValue ? cleanMoneyValue(request.itbiValue) : 0,
-
-      // Controle de fluxo
-      flowType: request.fluxo,
-      userId: request.userId,
-      consultorId: request.consultorId,
-      partnerId: request.partnerId
+      // Informações de segurança (se fornecidas)
+      security: request.security
     }
 
-    // Adicionar cônjuge se existir
-    if (request.spouse && request.spouse.document) {
+    // Adicionar cônjuge se existir e tiver dados válidos
+    if (request.spouse && request.spouse.document && request.spouse.name) {
       proposal.spouse = {
-        cpf: cleanCpf(request.spouse.document),
+        document: request.spouse.document,
         name: request.spouse.name,
-        birthDate: request.spouse.birthday,
+        birthday: request.spouse.birthday,
+        phone: request.spouse.phone,
         email: request.spouse.email,
-        phone: request.spouse.phone.replace(/\D/g, ''),
         motherName: request.spouse.motherName,
-        gender: request.spouse.gender,
-        profession: request.spouse.profession,
-        incomeType: request.spouse.workType,
-        income: cleanMoneyValue(request.spouse.monthlyIncome),
-        workRegime: request.spouse.workType,
-        composeIncome: request.spouse.spouseContributesIncome,
-
         documentType: request.spouse.documentType,
         documentNumber: request.spouse.documentNumber,
         documentIssuer: request.spouse.documentIssuer,
         documentIssueDate: request.spouse.documentIssueDate,
-        documentUf: request.spouse.spouseUfDataUser,
-
-        address: {
-          zipCode: request.spouse.cep.replace(/\D/g, ''),
-          street: request.spouse.logradouro,
-          number: request.spouse.number,
-          complement: request.spouse.complement,
-          neighborhood: request.spouse.bairro,
-          city: request.spouse.localidade,
-          state: request.spouse.ufRedisence,
-          addressType: 'RESIDENTIAL'
-        }
+        gender: request.spouse.gender,
+        spouseUfDataUser: request.spouse.spouseUfDataUser,
+        spouseContributesIncome: request.spouse.spouseContributesIncome,
+        propertyType: request.spouse.propertyType,
+        cep: request.spouse.cep,
+        logradouro: request.spouse.logradouro,
+        bairro: request.spouse.bairro,
+        localidade: request.spouse.localidade,
+        number: request.spouse.number,
+        complement: request.spouse.complement,
+        ufRedisence: request.spouse.ufRedisence,
+        profession: request.spouse.profession,
+        workType: request.spouse.workType,
+        monthlyIncome: request.spouse.monthlyIncome,
+        professionalPosition: request.spouse.professionalPosition,
+        civilStatus: request.spouse.civilStatus,
+        complemento: request.spouse.complemento,
+        unidade: request.spouse.unidade,
+        uf: request.spouse.uf,
+        estado: request.spouse.estado,
+        regiao: request.spouse.regiao,
+        ibge: request.spouse.ibge,
+        gia: request.spouse.gia,
+        ddd: request.spouse.ddd,
+        siafi: request.spouse.siafi
       }
     }
 
-    // Adicionar segundo proponente se existir e for diferente do cônjuge
+    // Adicionar segundo proponente se existir e tiver dados válidos
     if (
       request.secondProponent &&
       request.secondProponent.document &&
-      request.secondProponent.document !== request.spouse?.document
+      request.secondProponent.name
     ) {
-      proposal.spouse = {
-        cpf: cleanCpf(request.secondProponent.document),
+      proposal.secondProponent = {
+        document: request.secondProponent.document,
         name: request.secondProponent.name,
-        birthDate: request.secondProponent.birthday,
+        birthday: request.secondProponent.birthday,
+        phone: request.secondProponent.phone,
         email: request.secondProponent.email,
-        phone: request.secondProponent.phone.replace(/\D/g, ''),
         motherName: request.secondProponent.motherName,
-        gender: request.secondProponent.gender,
-        profession: request.secondProponent.profession,
-        incomeType: request.secondProponent.workType,
-        income: cleanMoneyValue(request.secondProponent.monthlyIncome),
-        workRegime: request.secondProponent.workType,
-        composeIncome: request.secondProponent.spouseContributesIncome,
-
         documentType: request.secondProponent.documentType,
         documentNumber: request.secondProponent.documentNumber,
         documentIssuer: request.secondProponent.documentIssuer,
         documentIssueDate: request.secondProponent.documentIssueDate,
-        documentUf: request.secondProponent.uf,
+        gender: request.secondProponent.gender,
+        uf: request.secondProponent.uf,
+        spouseContributesIncome:
+          request.secondProponent.spouseContributesIncome,
+        propertyType: request.secondProponent.propertyType,
+        cep: request.secondProponent.cep,
+        logradouro: request.secondProponent.logradouro,
+        bairro: request.secondProponent.bairro,
+        localidade: request.secondProponent.localidade,
+        number: request.secondProponent.number,
+        complement: request.secondProponent.complement,
+        ufRedisence: request.secondProponent.ufRedisence,
+        profession: request.secondProponent.profession,
+        workType: request.secondProponent.workType,
+        monthlyIncome: request.secondProponent.monthlyIncome,
+        professionalPosition: request.secondProponent.professionalPosition,
+        civilStatus: request.secondProponent.civilStatus
+      }
 
-        address: {
-          zipCode: request.secondProponent.cep.replace(/\D/g, ''),
-          street: request.secondProponent.logradouro,
-          number: request.secondProponent.number,
-          complement: request.secondProponent.complement,
-          neighborhood: request.secondProponent.bairro,
-          city: request.secondProponent.localidade,
-          state: request.secondProponent.ufRedisence,
-          addressType: 'RESIDENTIAL'
-        }
+      // Adicionar cônjuge do segundo proponente se existir
+      if (
+        request.secondProponent.spouseSecondProponent &&
+        request.secondProponent.spouseSecondProponent.document
+      ) {
+        proposal.secondProponent.spouseSecondProponent =
+          request.secondProponent.spouseSecondProponent
       }
     }
 
     // Adicionar dados de construção se necessário
     if (
       request.construction &&
-      (proposal.productType === 'PILOTO' || proposal.productType === 'REPASSE')
+      (proposal.selectedProductOption === 'PILOTO' ||
+        proposal.selectedProductOption === 'REPASSE')
     ) {
       proposal.construction = {
         businessPersonId: request.construction.businessPersonId,
@@ -159,7 +196,10 @@ export class CreditProposalMapper {
     }
 
     // Adicionar dados de portabilidade se necessário
-    if (request.portability && proposal.productType === 'PORTABILIDADE') {
+    if (
+      request.portability &&
+      proposal.selectedProductOption === 'PORTABILIDADE'
+    ) {
       proposal.portability = {
         outstandingBalance: request.portability.outstandingBalance,
         remainingPeriod: request.portability.remainingPeriod,
@@ -168,5 +208,101 @@ export class CreditProposalMapper {
     }
 
     return proposal
+  }
+
+  // Métodos helper para converter dados formatados
+  static getCleanCpf(proposal: CreditProposal): string {
+    return proposal.document.replace(/\D/g, '')
+  }
+
+  static getCleanPhone(proposal: CreditProposal): string {
+    return proposal.phone.replace(/\D/g, '')
+  }
+
+  static getPropertyValueAsNumber(proposal: CreditProposal): number {
+    if (!proposal.propertyValue) return 0
+
+    // Corrigir a conversão: remover R$, espaços e pontos (separadores de milhar), depois trocar vírgula por ponto
+    const cleanValue = proposal.propertyValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
+  }
+
+  static getFinancedValueAsNumber(proposal: CreditProposal): number {
+    if (!proposal.financedValue) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.financedValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
+  }
+
+  static getMonthlyIncomeAsNumber(proposal: CreditProposal): number {
+    if (!proposal.monthlyIncome) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.monthlyIncome
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
+  }
+
+  static getFgtsValueAsNumber(proposal: CreditProposal): number {
+    if (!proposal.fgtsValue) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.fgtsValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
+  }
+
+  static getItbiValueAsNumber(proposal: CreditProposal): number {
+    if (!proposal.itbiValue) return 0
+
+    // Mesma correção
+    const cleanValue = proposal.itbiValue
+      .replace(/[R$\s]/g, '') // Remove R$ e espaços
+      .replace(/\./g, '') // Remove pontos (separadores de milhar)
+      .replace(',', '.') // Troca vírgula por ponto decimal
+
+    return parseFloat(cleanValue) || 0
+  }
+
+  static getTermAsNumber(proposal: CreditProposal): number {
+    return parseInt(proposal.term) || 0
+  }
+
+  static getDownPayment(proposal: CreditProposal): number {
+    return (
+      this.getPropertyValueAsNumber(proposal) -
+      this.getFinancedValueAsNumber(proposal)
+    )
+  }
+
+  // Converter data brasileira para ISO
+  static convertBirthdayToIso(birthday: string): string {
+    const [day, month, year] = birthday.split('/')
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+  }
+
+  static parseMoneyString(value: string): number {
+    if (!value) return 0
+    const cleanValue = value
+      .replace(/[R$\s]/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.')
+
+    return parseFloat(cleanValue) || 0
   }
 }

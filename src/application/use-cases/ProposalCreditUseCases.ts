@@ -1,7 +1,12 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
-import { CreditSimulationDomainService } from '@domain/services/CreditSimulationDomain.service'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
-import { IBankProposalApiService, IClientRepository } from '@infra/interfaces'
+import { IBankProposalApiService } from '@infra/interfaces'
+import { IProposalClientRepository } from '@infra/interfaces/ProposalClientRepository.interface'
+import { CreditProposalMapper } from '@infra/mappers/CreditProposal.mapper'
+import { ItauApiService } from '@domain/services/itau/ItauApiService'
+import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauProposalDetails.mapper'
+import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
+import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
 
 export interface ProposalResult {
   bankName: string
@@ -9,7 +14,9 @@ export interface ProposalResult {
   proposalId?: string
   proposalNumber?: string
   error?: string
-  bankResponse?: BankProposalResponse // Adicionar resposta do banco para salvar depois
+  adjustments?: any[] // NOVO: Ajustes aplicados
+  originalFinancedValue?: string // NOVO: Valor original antes do ajuste
+  adjustedFinancedValue?: string // NOVO: Valor após ajuste
 }
 
 export interface SendProposalResult {
@@ -17,108 +24,112 @@ export interface SendProposalResult {
   results: ProposalResult[]
   clientId?: bigint
   flowType: string
+  totalAdjustments?: number // NOVO: Total de ajustes aplicados
+  summary?: string // NOVO: Resumo das operações
 }
 
 export class SendProposalUseCase {
   constructor(
     private bankServices: IBankProposalApiService[],
-    private clientRepository: IClientRepository
+    private proposalClientRepository: IProposalClientRepository
   ) {}
 
   async sendToSpecificBank(
     proposal: CreditProposal,
     bankName: string
   ): Promise<SendProposalResult> {
-    console.log(`🚀 Iniciando envio de proposta para ${bankName}`)
-
-    // Validação das regras de negócio
-    if (!CreditSimulationDomainService.validateBusinessRules(proposal)) {
+    // 1. Validação básica
+    if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
+    // 2. Validação e ajuste específico do banco
+    const validationResult = ProposalDomainService.validateAndAdjustForBank(
+      proposal,
+      bankName
+    )
+
+    if (!validationResult.success) {
+      throw new Error(
+        `Proposta não atende às regras do ${bankName}: ${validationResult.errors.join(', ')}`
+      )
+    }
+
+    // 3. Guardar valores originais para comparação
+    const originalFinancedValue = proposal.financedValue
+
+    // 4. Usar a proposta ajustada para envio
+    const adjustedProposal = validationResult.adjustedProposal || proposal
     const bankService = this.findBankService(bankName)
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
-    // 1. PRIMEIRO: Tentar enviar para o banco
     try {
-      console.log(`📤 Enviando proposta para ${bankName}...`)
-      const bankResponse = await bankService.sendProposal(proposal)
+      // 5. Enviar proposta ajustada para o banco
+      const bankResponse = await bankService.sendProposal(adjustedProposal)
 
+      clientId = await this.executeFlowLogic(adjustedProposal)
+
+      await this.saveBankProposal(
+        adjustedProposal,
+        bankResponse,
+        bankName,
+        clientId
+      )
+
+      if (
+        adjustedProposal.fluxo === 'normal' ||
+        adjustedProposal.fluxo === 'adicionar-banco'
+      ) {
+        const bankProposalIdentifier =
+          bankResponse.proposalNumber || bankResponse.proposalId
+        await this.proposalClientRepository.updateBankProposal(
+          CreditProposalMapper.getCleanCpf(adjustedProposal),
+          bankName,
+          bankProposalIdentifier
+        )
+      }
+
+      // 6. Incluir informações de ajuste no resultado
       results.push({
         bankName,
         success: true,
         proposalId: bankResponse.proposalId,
         proposalNumber: bankResponse.proposalNumber,
-        bankResponse: bankResponse // Guardar para salvar depois
+        adjustments: validationResult.adjustments || [],
+        originalFinancedValue: originalFinancedValue,
+        adjustedFinancedValue: adjustedProposal.financedValue
       })
 
-      console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
+      return {
+        success: true,
+        results,
+        clientId,
+        flowType: adjustedProposal.fluxo,
+        totalAdjustments: validationResult.adjustments?.length || 0,
+        summary:
+          validationResult.adjustments?.length > 0
+            ? `Proposta enviada com ${validationResult.adjustments.length} ajuste(s)`
+            : 'Proposta enviada sem ajustes'
+      }
     } catch (error) {
-      console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
       results.push({
         bankName,
         success: false,
-        error: error instanceof Error ? error.message : 'Erro desconhecido'
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        adjustments: validationResult.adjustments || [],
+        originalFinancedValue: originalFinancedValue,
+        adjustedFinancedValue: adjustedProposal.financedValue
       })
-    }
 
-    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
-    const hasSuccess = results.some((r) => r.success)
-
-    if (hasSuccess) {
-      try {
-        // Executar fluxo baseado no tipo (salvar cliente, etc.)
-        clientId = await this.executeFlowLogic(proposal)
-
-        // Salvar propostas dos bancos que tiveram sucesso
-        for (const result of results.filter(
-          (r) => r.success && r.bankResponse
-        )) {
-          await this.saveBankProposal(
-            proposal,
-            result.bankResponse!,
-            result.bankName
-          )
-
-          // Se for fluxo de adicionar banco, atualizar cliente
-          if (proposal.flowType === 'adicionar-banco') {
-            await this.clientRepository.updateBankProposal(
-              proposal.customerCpf,
-              result.bankName,
-              result.proposalId!
-            )
-          }
-        }
-
-        console.log(
-          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
-        )
-      } catch (error) {
-        console.error(`❌ Erro ao persistir dados:`, error)
-        // Se falhar ao persistir, marcar como erro mesmo que o envio tenha funcionado
-        results.forEach((r) => {
-          if (r.success) {
-            r.success = false
-            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-          }
-        })
+      return {
+        success: false,
+        results,
+        clientId,
+        flowType: adjustedProposal.fluxo,
+        totalAdjustments: validationResult.adjustments?.length || 0,
+        summary: 'Erro no envio da proposta'
       }
-    } else {
-      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
-    }
-
-    return {
-      success: results.every((r) => r.success),
-      results: results.map((r) => ({
-        bankName: r.bankName,
-        success: r.success,
-        proposalId: r.proposalId,
-        proposalNumber: r.proposalNumber,
-        error: r.error
-      })), // Remover bankResponse da resposta final
-      clientId,
-      flowType: proposal.flowType
     }
   }
 
@@ -126,106 +137,117 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankNames: string[]
   ): Promise<SendProposalResult> {
-    console.log(
-      `🚀 Iniciando envio de proposta para múltiplos bancos: ${bankNames.join(', ')}`
-    )
-
-    // Validação das regras de negócio
-    if (!CreditSimulationDomainService.validateBusinessRules(proposal)) {
+    // 1. Validação básica
+    if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
+    }
+
+    // 2. Validação e ajuste para múltiplos bancos
+    const multiValidation =
+      ProposalDomainService.validateAndAdjustForMultipleBanks(
+        proposal,
+        bankNames
+      )
+
+    if (!multiValidation.canProceed) {
+      throw new Error(
+        `Proposta não pode prosseguir: ${multiValidation.errors.join(', ')}`
+      )
     }
 
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
+    let totalAdjustments = 0
 
-    // 1. PRIMEIRO: Tentar enviar para todos os bancos
-    for (const bankName of bankNames) {
+    // 3. Enviar para cada banco válido usando a proposta ajustada específica
+    for (const bankName of multiValidation.validBanks) {
       try {
         const bankService = this.findBankService(bankName)
+        const adjustedProposal = multiValidation.adjustedProposals[bankName]
+        const bankAdjustments =
+          multiValidation.results[bankName]?.adjustments || []
 
-        console.log(`📤 Enviando proposta para ${bankName}...`)
-        const bankResponse = await bankService.sendProposal(proposal)
+        // Executar lógica de fluxo apenas uma vez
+        if (!clientId) {
+          clientId = await this.executeFlowLogic(adjustedProposal)
+        }
+
+        const bankResponse = await bankService.sendProposal(adjustedProposal)
+
+        await this.saveBankProposal(
+          adjustedProposal,
+          bankResponse,
+          bankName,
+          clientId
+        )
+
+        if (
+          adjustedProposal.fluxo === 'normal' ||
+          adjustedProposal.fluxo === 'adicionar-banco'
+        ) {
+          const bankProposalIdentifier =
+            bankResponse.proposalNumber || bankResponse.proposalId
+          await this.proposalClientRepository.updateBankProposal(
+            CreditProposalMapper.getCleanCpf(adjustedProposal),
+            bankName,
+            bankProposalIdentifier
+          )
+        }
+
+        totalAdjustments += bankAdjustments.length
 
         results.push({
           bankName,
           success: true,
           proposalId: bankResponse.proposalId,
           proposalNumber: bankResponse.proposalNumber,
-          bankResponse: bankResponse // Guardar para salvar depois
+          adjustments: bankAdjustments,
+          originalFinancedValue: proposal.financedValue,
+          adjustedFinancedValue: adjustedProposal.financedValue
         })
-
-        console.log(`✅ Proposta enviada com sucesso para ${bankName}`)
       } catch (error) {
-        console.error(`❌ Erro ao enviar proposta para ${bankName}:`, error)
+        console.error(`Erro ao enviar proposta para ${bankName}:`, error)
+        const bankAdjustments =
+          multiValidation.results[bankName]?.adjustments || []
+        totalAdjustments += bankAdjustments.length
+
         results.push({
           bankName,
           success: false,
-          error: error instanceof Error ? error.message : 'Erro desconhecido'
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+          adjustments: bankAdjustments,
+          originalFinancedValue: proposal.financedValue,
+          adjustedFinancedValue:
+            multiValidation.adjustedProposals[bankName]?.financedValue ||
+            proposal.financedValue
         })
       }
     }
 
-    // 2. DEPOIS: Se pelo menos um banco teve sucesso, executar lógica de persistência
-    const successfulResults = results.filter((r) => r.success)
+    // 4. Adicionar bancos rejeitados aos resultados
+    multiValidation.invalidBanks.forEach((bankName) => {
+      const bankErrors = multiValidation.errors
+        .filter((error) => error.startsWith(`${bankName}:`))
+        .map((error) => error.replace(`${bankName}: `, ''))
+        .join(', ')
 
-    if (successfulResults.length > 0) {
-      try {
-        console.log(
-          `📋 ${successfulResults.length} bancos tiveram sucesso. Persistindo dados...`
-        )
-
-        // Executar fluxo baseado no tipo (salvar cliente, etc.)
-        clientId = await this.executeFlowLogic(proposal)
-
-        // Salvar propostas dos bancos que tiveram sucesso
-        for (const result of successfulResults) {
-          await this.saveBankProposal(
-            proposal,
-            result.bankResponse!,
-            result.bankName
-          )
-
-          // Se for fluxo de adicionar banco, atualizar cliente
-          if (proposal.flowType === 'adicionar-banco') {
-            await this.clientRepository.updateBankProposal(
-              proposal.customerCpf,
-              result.bankName,
-              result.proposalId!
-            )
-          }
-        }
-
-        console.log(
-          `💾 Dados persistidos com sucesso - Cliente ID: ${clientId}`
-        )
-        console.log(
-          `✅ Resumo: ${successfulResults.length}/${bankNames.length} bancos com sucesso`
-        )
-      } catch (error) {
-        console.error(`❌ Erro ao persistir dados:`, error)
-        // Se falhar ao persistir, marcar todos os sucessos como erro
-        results.forEach((r) => {
-          if (r.success) {
-            r.success = false
-            r.error = `Envio realizado mas falha na persistência: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
-          }
-        })
-      }
-    } else {
-      console.log(`⚠️ Nenhum banco teve sucesso - dados não serão persistidos`)
-    }
+      results.push({
+        bankName,
+        success: false,
+        error: bankErrors || 'Proposta não atende aos critérios do banco',
+        adjustments: [],
+        originalFinancedValue: proposal.financedValue,
+        adjustedFinancedValue: proposal.financedValue
+      })
+    })
 
     return {
-      success: results.some((r) => r.success), // Mudança: sucesso se pelo menos um banco funcionou
-      results: results.map((r) => ({
-        bankName: r.bankName,
-        success: r.success,
-        proposalId: r.proposalId,
-        proposalNumber: r.proposalNumber,
-        error: r.error
-      })), // Remover bankResponse da resposta final
+      success: results.some((r) => r.success),
+      results,
       clientId,
-      flowType: proposal.flowType
+      flowType: proposal.fluxo,
+      totalAdjustments,
+      summary: `${multiValidation.validBanks.length}/${bankNames.length} banco(s) aprovaram. ${totalAdjustments} ajuste(s) aplicado(s)`
     }
   }
 
@@ -234,43 +256,33 @@ export class SendProposalUseCase {
   ): Promise<bigint | undefined> {
     let clientId: bigint | undefined
 
-    switch (proposal.flowType) {
+    switch (proposal.fluxo) {
       case 'normal':
-        console.log(`📋 Executando fluxo NORMAL`)
-        // Salvar cliente e detalhes
-        const clientData = await this.clientRepository.save(proposal)
+        const clientData = await this.proposalClientRepository.save(proposal)
         clientId = clientData.id
 
         if (clientId) {
-          await this.clientRepository.saveDetails(proposal, clientId)
-          console.log(`💾 Cliente e detalhes salvos no fluxo normal`)
+          await this.proposalClientRepository.saveDetails(proposal, clientId)
         }
         break
 
       case 'reenvio':
-        console.log(`📋 Executando fluxo REENVIO`)
-        // Buscar cliente existente
-        const existingClient = await this.clientRepository.findByCpf(
-          proposal.customerCpf
+        const existingClient = await this.proposalClientRepository.findByCpf(
+          CreditProposalMapper.getCleanCpf(proposal)
         )
         clientId = existingClient?.id
-        console.log(`🔍 Cliente existente encontrado para reenvio: ${clientId}`)
         break
 
       case 'adicionar-banco':
-        console.log(`📋 Executando fluxo ADICIONAR-BANCO`)
-        // Buscar cliente existente
-        const existingClientForUpdate = await this.clientRepository.findByCpf(
-          proposal.customerCpf
-        )
+        const existingClientForUpdate =
+          await this.proposalClientRepository.findByCpf(
+            CreditProposalMapper.getCleanCpf(proposal)
+          )
         clientId = existingClientForUpdate?.id
-        console.log(
-          `🔍 Cliente existente encontrado para adicionar banco: ${clientId}`
-        )
         break
 
       default:
-        throw new Error(`Tipo de fluxo inválido: ${proposal.flowType}`)
+        throw new Error(`Tipo de fluxo inválido: ${proposal.fluxo}`)
     }
 
     return clientId
@@ -279,25 +291,22 @@ export class SendProposalUseCase {
   private async saveBankProposal(
     proposal: CreditProposal,
     bankResponse: BankProposalResponse,
-    bankName: string
+    bankName: string,
+    clientId?: bigint
   ): Promise<void> {
     try {
       switch (bankName.toLowerCase()) {
         case 'itau':
-          const itauRepo = RepositoryFactory.createItauProposalRepository()
-          await itauRepo.save(proposal, bankResponse, proposal.flowType)
+          await this.saveItauProposal(proposal, bankResponse, clientId)
           break
 
         case 'inter':
-          const interRepo = RepositoryFactory.createInterProposalRepository()
-          await interRepo.save(proposal, bankResponse, proposal.flowType)
+          await this.saveInterProposal(proposal, bankResponse)
           break
 
-        // Adicionar outros bancos conforme necessário
-        // case 'santander':
-        //   const santanderRepo = RepositoryFactory.createSantanderProposalRepository()
-        //   await santanderRepo.save(proposal, bankResponse, proposal.flowType)
-        //   break
+        case 'santander':
+          console.log(`⚠️ Santander repository não implementado ainda`)
+          break
 
         default:
           console.warn(
@@ -306,12 +315,52 @@ export class SendProposalUseCase {
           break
       }
     } catch (error) {
-      console.error(
-        `❌ Erro ao salvar proposta na tabela do ${bankName}:`,
-        error
-      )
       throw error
     }
+  }
+
+  private async saveItauProposal(
+    proposal: CreditProposal,
+    bankResponse: BankProposalResponse,
+    clientId?: bigint
+  ): Promise<void> {
+    const itauService = this.findBankService('itau') as ItauApiService
+    const itauRepo = RepositoryFactory.createItauProposalRepository()
+    const deParaRepo = RepositoryFactory.createDeParaRepository()
+
+    try {
+      const proposalDetails = await itauService.getProposalDetails(
+        bankResponse.proposalNumber!
+      )
+      const mappedDetails = await ItauProposalDetailsMapper.mapFromItauResponse(
+        proposalDetails,
+        proposal,
+        deParaRepo,
+        clientId
+      )
+      await itauRepo.save(mappedDetails, clientId)
+    } catch (error) {
+      const basicDetails: ItauProposalDetails = {
+        id_proposta: bankResponse.proposalNumber || bankResponse.proposalId,
+        status_global: 'ENVIADO',
+        id_cliente_most: clientId || null,
+        id_status_most: null,
+        id_situacao_most: null,
+        proposal_uuid: bankResponse.proposalId,
+        proposta_copiada: false,
+        id_produto: this.getProductIdForItau(proposal.selectedProductOption)
+      }
+
+      await itauRepo.save(basicDetails, clientId)
+    }
+  }
+
+  private async saveInterProposal(
+    proposal: CreditProposal,
+    bankResponse: BankProposalResponse
+  ): Promise<void> {
+    const interRepo = RepositoryFactory.createInterProposalRepository()
+    await interRepo.save(proposal, bankResponse, proposal.fluxo)
   }
 
   private findBankService(bankName: string): IBankProposalApiService {
@@ -325,5 +374,15 @@ export class SendProposalUseCase {
     }
 
     return bankService
+  }
+
+  private getProductIdForItau(productOption: string): bigint {
+    const productMap: { [key: string]: bigint } = {
+      ISOLADO: BigInt(1),
+      PILOTO: BigInt(2),
+      REPASSE: BigInt(3),
+      PORTABILIDADE: BigInt(4)
+    }
+    return productMap[productOption] || BigInt(1)
   }
 }

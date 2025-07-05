@@ -34,7 +34,7 @@ export interface InterProposalPerson {
     cidade: string
     estado: string
     numero: number
-    complemento?: string
+    complemento: string | null
   }
   flagFiador: boolean
   flagAdquirente: boolean

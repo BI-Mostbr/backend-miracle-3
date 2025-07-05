@@ -108,7 +108,6 @@ export class ItauAuthService {
         bodyParams.toString(),
         { headers }
       )
-
       const tokenData: TokenResponse = response.data
       if (!tokenData.access_token) {
         throw new Error('Access token não retornado pela API de autenticação')

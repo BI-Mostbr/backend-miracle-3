@@ -7,11 +7,13 @@ import { ItauProposalPayload } from '../types/ItauProposalPayload.type'
 
 export class ItauHttpClient {
   private readonly axiosInstance: AxiosInstance
+  private readonly legacyAxiosInstance: AxiosInstance
   private readonly baseUrl: string
 
   constructor() {
     this.baseUrl = process.env.ITAU_API_URL!
     this.axiosInstance = this.createAxiosInstanceWithCerts()
+    this.legacyAxiosInstance = this.createLegacyAxiosInstanceWithCerts()
     if (!this.baseUrl) {
       console.error('ITAU_API_URL não configurado!')
       throw new Error('ITAU_API_URL é obrigatório')
@@ -61,6 +63,50 @@ export class ItauHttpClient {
     }
   }
 
+  private createLegacyAxiosInstanceWithCerts(): AxiosInstance {
+    try {
+      const certsPath = path.join(process.cwd(), 'certs', 'itau')
+      const keyPath = path.join(certsPath, 'NOVO_CERTIFICADO.key')
+      const certPath = path.join(certsPath, 'Certificado_itau.crt')
+      const keyExists = fs.existsSync(keyPath)
+      const certExists = fs.existsSync(certPath)
+
+      const config: any = {
+        // SEM baseURL para permitir URLs absolutas
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Itau-Legacy-API-Client/1.0'
+        }
+      }
+
+      if (keyExists && certExists) {
+        const key = fs.readFileSync(keyPath, 'utf8')
+        const cert = fs.readFileSync(certPath, 'utf8')
+
+        const httpsAgent = new https.Agent({
+          key: key,
+          cert: cert,
+          rejectUnauthorized: true
+        })
+        config.httpsAgent = httpsAgent
+      } else {
+        console.warn('Legacy HTTP client sem certificados')
+      }
+
+      return axios.create(config)
+    } catch (error) {
+      console.error('Erro ao configurar legacy HTTP client:', error)
+      return axios.create({
+        timeout: 30000,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Itau-Legacy-API-Client/1.0'
+        }
+      })
+    }
+  }
+
   async simulateCredit(
     payload: ItauApiPayload,
     accessToken: string
@@ -75,9 +121,13 @@ export class ItauHttpClient {
     }
 
     try {
-      const response = await this.axiosInstance.post('/simulations', payload, {
-        headers
-      })
+      const response = await this.axiosInstance.post(
+        '/proposal-financing-partners/v1/simulations',
+        payload,
+        {
+          headers
+        }
+      )
       return response.data
     } catch (error) {
       console.error('Erro na simulação do Itaú:')
@@ -142,16 +192,21 @@ export class ItauHttpClient {
     const headers = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
+      'x-itau-apiKey': process.env.ITAU_API_KEY!,
+      'x-itau-appid': process.env.ITAU_APP_ID!,
       'x-itau-correlationID': correlationId,
       'x-itau-flowID': flowId
     }
+    console.log('Headers:', headers)
 
     try {
-      console.log('✨ ItauHttpClient: Enviando proposta')
-      const response = await this.axiosInstance.post('/proposals', payload, {
-        headers
-      })
-      console.log('✅ Proposta enviada com sucesso:', response.data)
+      const response = await this.axiosInstance.post(
+        '/proposal-financing-partners/v1/proposals',
+        payload,
+        {
+          headers
+        }
+      )
       return response.data
     } catch (error) {
       console.error('❌ Erro ao enviar proposta para o Itaú:', error)
@@ -165,6 +220,33 @@ export class ItauHttpClient {
 
   private generateCorrelationId(): string {
     return `corr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+  }
+
+  async getProposal(idProposal: number, accessToken: string): Promise<any> {
+    const flowId = this.generateFlowId()
+    const correlationId = this.generateCorrelationId()
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+      'x-itau-apiKey': process.env.ITAU_API_KEY!,
+      'x-itau-appid': process.env.ITAU_APP_ID!,
+      'x-itau-correlationID': correlationId,
+      'x-itau-flowID': flowId
+    }
+
+    try {
+      const response = await this.legacyAxiosInstance.get(
+        `https://api.itau.com.br/creditos_imobiliario/v1/propostas/${idProposal}`,
+        {
+          headers
+        }
+      )
+      return response.data
+    } catch (error) {
+      console.error('❌ Erro ao buscar proposta do Itaú:', error)
+      //this.handleError(error)
+    }
   }
 
   async getSimulation(
@@ -190,7 +272,7 @@ export class ItauHttpClient {
 
     try {
       const response = await this.axiosInstance.get(
-        `/simulations/${idSimulation}`,
+        `/proposal-financing-partners/v1/simulations/${idSimulation}`,
         { headers, params: queryParams }
       )
       console.log(JSON.stringify(response.data))

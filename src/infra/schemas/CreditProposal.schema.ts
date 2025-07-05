@@ -3,15 +3,23 @@ import { z } from 'zod'
 const AddressSchema = z.object({
   cep: z.string().min(8, 'CEP deve ter 8 dígitos'),
   logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+  complemento: z.string().optional(),
+  unidade: z.string().optional(),
   bairro: z.string().min(1, 'Bairro é obrigatório'),
   localidade: z.string().min(1, 'Cidade é obrigatória'),
+  uf: z.string().length(2, 'UF deve ter 2 caracteres'),
+  estado: z.string().optional(),
+  regiao: z.string().optional(),
+  ibge: z.string().optional(),
+  gia: z.string().optional(),
+  ddd: z.string().optional(),
+  siafi: z.string().optional(),
   number: z.string().min(1, 'Número é obrigatório'),
-  complement: z.string().optional(),
-  ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres')
+  complement: z.string().optional()
 })
 
 const PersonSchema = z.object({
-  document: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos'),
+  document: z.string().min(11, 'CPF deve ter pelo menos 11 dígitos'),
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   birthday: z
     .string()
@@ -32,18 +40,78 @@ const PersonSchema = z.object({
   professionalPosition: z.string().min(1, 'Cargo é obrigatório')
 })
 
+const SpouseSchema = PersonSchema.extend({
+  spouseUfDataUser: z.string().length(2, 'UF deve ter 2 caracteres'),
+  spouseContributesIncome: z.boolean(),
+  propertyType: z.string().min(1, 'Tipo de propriedade é obrigatório'),
+  cep: z.string().min(8, 'CEP deve ter 8 dígitos'),
+  logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+  bairro: z.string().min(1, 'Bairro é obrigatório'),
+  localidade: z.string().min(1, 'Cidade é obrigatória'),
+  number: z.string().min(1, 'Número é obrigatório'),
+  complement: z.string().optional(),
+  ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
+  civilStatus: z.string().min(1, 'Estado civil é obrigatório'),
+  complemento: z.string().optional(),
+  unidade: z.string().optional(),
+  uf: z.string().length(2, 'UF deve ter 2 caracteres'),
+  estado: z.string().optional(),
+  regiao: z.string().optional(),
+  ibge: z.string().optional(),
+  gia: z.string().optional(),
+  ddd: z.string().optional(),
+  siafi: z.string().optional()
+}).optional()
+
+const SecondProponentSchema = PersonSchema.extend({
+  uf: z.string().length(2, 'UF deve ter 2 caracteres'),
+  spouseContributesIncome: z.boolean(),
+  propertyType: z.string().min(1, 'Tipo de propriedade é obrigatório'),
+  cep: z.string().min(8, 'CEP deve ter 8 dígitos'),
+  logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+  bairro: z.string().min(1, 'Bairro é obrigatório'),
+  localidade: z.string().min(1, 'Cidade é obrigatória'),
+  number: z.string().min(1, 'Número é obrigatório'),
+  complement: z.string().optional(),
+  ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
+  civilStatus: z.string().min(1, 'Estado civil é obrigatório'),
+
+  spouseSecondProponent: PersonSchema.extend({
+    uf: z.string().length(2, 'UF deve ter 2 caracteres'),
+    spouseContributesIncome: z.boolean(),
+    propertyType: z.string().min(1, 'Tipo de propriedade é obrigatório'),
+    cep: z.string().min(8, 'CEP deve ter 8 dígitos'),
+    logradouro: z.string().min(1, 'Logradouro é obrigatório'),
+    bairro: z.string().min(1, 'Bairro é obrigatório'),
+    localidade: z.string().min(1, 'Cidade é obrigatória'),
+    number: z.string().min(1, 'Número é obrigatório'),
+    complement: z.string().optional(),
+    ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
+    includesIncome: z.boolean()
+  }).optional()
+}).optional()
+
 export const CreditProposalRequestSchema = z.object({
   fluxo: z.enum(['normal', 'reenvio', 'adicionar-banco']),
+  consultorId: z.number().int().positive('ID do consultor deve ser positivo'),
+  userId: z
+    .number()
+    .int()
+    .positive('ID do usuário deve ser positivo')
+    .optional(),
+  partnerId: z.string().optional(),
+
   selectedBanks: z
     .array(z.string())
     .min(1, 'Pelo menos um banco deve ser selecionado'),
+
   selectedProductOption: z.enum([
     'ISOLADO',
     'PILOTO',
     'REPASSE',
     'PORTABILIDADE'
   ]),
-
+  selectedPartnerOption: z.string().optional(),
   propertyValue: z.string().min(1, 'Valor do imóvel é obrigatório'),
   financedValue: z.string().min(1, 'Valor financiado é obrigatório'),
   term: z.string().min(1, 'Prazo é obrigatório'),
@@ -57,13 +125,9 @@ export const CreditProposalRequestSchema = z.object({
   cities: z.string().optional(),
   situation: z.string().min(1, 'Situação do imóvel é obrigatória'),
   financingRate: z.string().min(1, 'Taxa de financiamento é obrigatória'),
+  propertyTypeResidenceInfo: z.string().optional(),
 
-  document: z
-    .string()
-    .regex(
-      /^\d{3}\.\d{3}\.\d{3}-\d{2}$/,
-      'CPF deve estar no formato XXX.XXX.XXX-XX'
-    ),
+  document: z.string().min(11, 'CPF deve ter pelo menos 11 dígitos'),
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   birthday: z
     .string()
@@ -86,29 +150,25 @@ export const CreditProposalRequestSchema = z.object({
   maritalStatus: z.string().min(1, 'Estado civil é obrigatório'),
   matrimonialRegime: z.string().optional(),
   marriageDate: z.string().optional(),
-
   cepBankAgency: z.string().min(8, 'CEP deve ter 8 dígitos'),
   agencyBank: z.string().optional(),
   account: z.string().optional(),
   accountId: z.string().optional(),
   agency: z.string().optional(),
-
-  spouse: PersonSchema.extend({
-    spouseUfDataUser: z.string().length(2, 'UF deve ter 2 caracteres'),
-    spouseContributesIncome: z.boolean(),
-    civilStatus: z.string().min(1, 'Estado civil é obrigatório')
-  })
-    .merge(AddressSchema)
+  userAddress: AddressSchema.optional(),
+  security: z
+    .object({
+      bank: z.array(
+        z.object({
+          name: z.string(),
+          security: z.string()
+        })
+      )
+    })
     .optional(),
 
-  secondProponent: PersonSchema.extend({
-    uf: z.string().length(2, 'UF deve ter 2 caracteres'),
-    spouseContributesIncome: z.boolean(),
-    civilStatus: z.string().min(1, 'Estado civil é obrigatório')
-  })
-    .merge(AddressSchema)
-    .optional(),
-
+  spouse: SpouseSchema,
+  secondProponent: SecondProponentSchema,
   construction: z
     .object({
       businessPersonId: z
@@ -119,7 +179,6 @@ export const CreditProposalRequestSchema = z.object({
       unitId: z.string().optional()
     })
     .optional(),
-
   portability: z
     .object({
       outstandingBalance: z
@@ -134,15 +193,7 @@ export const CreditProposalRequestSchema = z.object({
         .int()
         .positive('Prazo original deve ser positivo')
     })
-    .optional(),
-
-  userId: z.number().int().positive('ID do usuário deve ser positivo'),
-  consultorId: z
-    .number()
-    .int()
-    .positive('ID do consultor deve ser positivo')
-    .optional(),
-  partnerId: z.string().optional()
+    .optional()
 })
 
 export const BankNameProposalParamSchema = z.object({
@@ -151,10 +202,23 @@ export const BankNameProposalParamSchema = z.object({
     .min(1, 'Nome do banco é obrigatório')
     .transform((name) => name.trim().toLowerCase())
     .refine(
-      (name) => ['itau', 'inter', 'santander', 'bradesco'].includes(name),
+      (name) =>
+        ['itau', 'inter', 'santander', 'bradesco', 'cef'].includes(name),
       {
         message:
-          'Banco deve ser um dos seguintes: itau, inter, santander, bradesco'
+          'Banco deve ser um dos seguintes: itau, inter, santander, bradesco, cef'
       }
     )
 })
+export const MultipleBanksProposalRequestSchema =
+  CreditProposalRequestSchema.extend({
+    selectedBanks: z
+      .array(z.string().min(1, 'Nome do banco não pode estar vazio'))
+      .min(1, 'Pelo menos um banco deve ser especificado')
+      .max(5, 'Máximo de 5 bancos permitidos')
+  })
+export type BankNameProposalParam = z.infer<typeof BankNameProposalParamSchema>
+export type CreditProposalRequest = z.infer<typeof CreditProposalRequestSchema>
+export type MultipleBanksProposalRequest = z.infer<
+  typeof MultipleBanksProposalRequestSchema
+>

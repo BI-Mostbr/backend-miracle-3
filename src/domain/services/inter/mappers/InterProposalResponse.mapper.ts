@@ -1,48 +1,36 @@
-import { BankProposalResponse, CreditProposal } from '@domain/entities'
+import { BankProposalResponse } from '@domain/entities'
+
+export interface InterProposalResponse {
+  idProposta: string
+  idSimulacao: string
+}
 
 export class InterProposalResponseMapper {
-  static convertToInternalResponse(
-    interResponse: any,
-    proposal: CreditProposal
+  static mapToInternalResponse(
+    interResponse: InterProposalResponse
   ): BankProposalResponse {
-    return {
-      proposalId: interResponse.idProposta,
-      simulationId: interResponse.idSimulacao,
-      bankName: 'Inter',
-      proposalNumber: this.extractProposalNumber(interResponse.idProposta),
-      status: 'ENVIADO',
+    console.log('🔄 Mapeando resposta do Inter:', interResponse)
 
+    const proposalId = interResponse.idProposta
+    const simulationId = interResponse.idSimulacao
+
+    const response: BankProposalResponse = {
+      bankName: 'Inter',
+      proposalId: proposalId,
+      simulationId: simulationId,
+      status: 'ENVIADO',
       bankSpecificData: {
         inter: {
-          idProposta: interResponse.idProposta,
-          idSimulacao: interResponse.idSimulacao
+          idProposta: proposalId,
+          idSimulacao: simulationId
         }
       }
     }
-  }
 
-  static mapStatusToInternal(interStatus: string): string {
-    const statusMap: { [key: string]: string } = {
-      CRIADA: 'ENVIADO',
-      EM_ANALISE: 'EM_ANALISE',
-      APROVADA: 'APROVADO',
-      REJEITADA: 'REJEITADO',
-      CANCELADA: 'CANCELADO',
-      FINALIZADA: 'FINALIZADO'
-    }
+    console.log('✅ Resposta mapeada:')
+    console.log(`📄 ID Proposta: ${proposalId}`)
+    console.log(`📄 ID Simulação: ${simulationId}`)
 
-    return statusMap[interStatus] || 'DESCONHECIDO'
-  }
-
-  private static extractProposalNumber(proposalId: string): string {
-    // Extrair um número sequencial do UUID para exibição
-    const timestamp = Date.now().toString().slice(-6)
-    return `INTER${timestamp}`
-  }
-
-  static generateSimulationId(): string {
-    const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(2, 8)
-    return `inter-prop-${timestamp}-${random}`
+    return response
   }
 }

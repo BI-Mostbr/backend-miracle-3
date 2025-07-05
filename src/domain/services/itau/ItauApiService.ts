@@ -21,6 +21,7 @@ import {
 import { ItauProposalResponseMapper } from './mappers/ItauProposalResponse.mapper'
 import { UserRepository } from '@infra/repositories/User.repository'
 import { RepositoryFactory } from '@infra/factories/Repository.factory'
+import { delay } from 'Utils/delay'
 
 export class ItauApiService
   implements IBankApiService, IBankProposalApiService
@@ -99,55 +100,6 @@ export class ItauApiService
     }
   }
 
-  async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
-    try {
-      let consultorData: ConsultorData | undefined
-      try {
-        if (proposal.userId) {
-          const userData = await this.userRepository.findUserById(
-            proposal.userId
-          )
-
-          if (userData) {
-            consultorData = {
-              nome_itau: userData.nome_itau,
-              cpf: userData.cpf
-            }
-          }
-        }
-      } catch (userError) {
-        throw new Error('Erro ao buscar dados do consultor')
-      }
-
-      const accessToken = await this.authService.getAccessToken()
-      console.log(accessToken)
-      const itauPayload = ItauProposalPayloadMapper.convertToPayload(
-        proposal,
-        consultorData
-      )
-      console.log(JSON.stringify(itauPayload))
-      const itauResponse = await this.httpClient.sendProposal(
-        itauPayload,
-        accessToken
-      )
-      const bankResponse = ItauProposalResponseMapper.convertToInternalResponse(
-        itauResponse,
-        proposal
-      )
-
-      console.log(
-        `✅ Proposta enviada com sucesso para o ${this.getBankName()}`
-      )
-      return bankResponse
-    } catch (error) {
-      console.error(
-        `❌ Erro ao enviar proposta para o ${this.getBankName()}:`,
-        error
-      )
-      return this.handleTokenError(error, () => this.sendProposal(proposal))
-    }
-  }
-
   async getSimulation(
     request: GetItauSimulationRequest
   ): Promise<GetItauSimulationResponse> {
@@ -171,6 +123,61 @@ export class ItauApiService
     }
   }
 
+  async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
+    try {
+      let consultorData: ConsultorData | undefined
+      try {
+        if (proposal.consultorId) {
+          const userData = await this.userRepository.findUserById(
+            proposal.consultorId
+          )
+          if (userData) {
+            consultorData = {
+              nome_itau: userData.nome_itau ?? undefined,
+              cpf: userData.cpf
+            }
+          }
+        }
+      } catch (userError) {
+        throw new Error('Erro ao buscar dados do consultor')
+      }
+
+      const accessToken = await this.authService.getAccessToken()
+      const itauPayload = ItauProposalPayloadMapper.convertToPayload(
+        proposal,
+        consultorData
+      )
+      const itauResponse = await this.httpClient.sendProposal(
+        itauPayload,
+        accessToken
+      )
+      const bankResponse = ItauProposalResponseMapper.convertToInternalResponse(
+        itauResponse,
+        proposal
+      )
+      return bankResponse
+    } catch (error) {
+      return this.handleTokenError(error, () => this.sendProposal(proposal))
+    }
+  }
+
+  async getProposalDetails(proposalNumber: string): Promise<any> {
+    try {
+      const accessToken = await this.authService.getAccessToken()
+      await delay(5000)
+      const proposalDetails = await this.httpClient.getProposal(
+        parseInt(proposalNumber),
+        accessToken
+      )
+
+      return proposalDetails
+    } catch (error) {
+      return this.handleTokenError(error, () =>
+        this.getProposalDetails(proposalNumber)
+      )
+    }
+  }
+
   private async handleTokenError<T>(
     error: any,
     retryFunction: () => Promise<T>
@@ -180,13 +187,10 @@ export class ItauApiService
       error.message.includes('Bearer token inválido')
     ) {
       try {
-        console.log(`🔄 Tentando renovar token do ${this.getBankName()}...`)
         await this.authService.refreshToken()
         const result = await retryFunction()
-        console.log(`✅ Operação realizada com sucesso após renovação do token`)
         return result
       } catch (retryError) {
-        console.error(`❌ Erro mesmo após renovação do token:`, retryError)
         throw new Error(
           `Falha no ${this.getBankName()} mesmo após renovação do token: ${retryError}`
         )
@@ -196,8 +200,6 @@ export class ItauApiService
   }
 
   async refreshCredentials(): Promise<void> {
-    console.log('Forçando renovação das credenciais...')
     await this.authService.refreshToken()
-    console.log('Credenciais renovadas')
   }
 }

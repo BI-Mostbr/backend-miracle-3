@@ -1,9 +1,4 @@
-import { BankProposalResponse, CreditProposal } from '@domain/entities'
-import { ItauProposalDetails } from './ItauProposalDetails.interface'
-
-export interface IItauProposalData {
-  id_most?: bigint
-  created_at?: Date
+export interface ItauProposalDetails {
   id_proposta: string
   decisao_credito?: string | null
   emissao_contrato?: string | null
@@ -29,36 +24,13 @@ export interface IItauProposalData {
   prazo?: bigint | null
   cet?: number | null
   valor_solicitado?: number | null
-  id_status_most?: bigint | null
-  id_situacao_most?: bigint | null
-  id_substatus_most?: bigint | null
-  status_laudo?: string | null
-  data_abertura_laudo?: string | null
-  data_encerramento_laudo?: string | null
-  data_agendamento?: string | null
-  data_implantacao_contrato?: string | null
+  id_status_most: bigint | null
+  id_situacao_most: bigint | null
   valor_fgts?: number | null
   valor_compra_venda?: number | null
   valor_tarifas?: number | null
   total_credito?: number | null
-  id_incorporadora?: bigint | null
-  id_empreendimento?: bigint | null
-  id_bloco?: bigint | null
-  id_unidade?: bigint | null
-  id_anexo?: bigint | null
-  unidade?: string | null
-  anexo?: string | null
-  bloco?: string | null
   proposal_uuid?: string | null
-  total_documentps?: bigint | null
   proposta_copiada?: boolean | null
-  id_cliente_incorporador?: bigint | null
   id_produto?: bigint | null
-}
-
-export interface IItauProposalRepository {
-  save(
-    details: ItauProposalDetails,
-    clientMostId?: bigint
-  ): Promise<IItauProposalData>
 }

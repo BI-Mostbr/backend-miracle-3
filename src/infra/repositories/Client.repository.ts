@@ -1,129 +1,174 @@
 import { CreditProposal } from '@domain/entities'
 import {
-  IClientData,
-  IClientDetailsData,
-  IClientRepository
-} from '@infra/interfaces'
+  IProposalClientData,
+  IProposalClientDetailsData,
+  IProposalClientRepository
+} from '@infra/interfaces/ProposalClientRepository.interface'
 import { PrismaClient } from '@prisma/client'
+import { convertDateBrToIso } from 'Utils/convertData'
+import { cleanCpf, cleanMoney } from 'Utils/removeMasks'
 
-export class ClientRepository implements IClientRepository {
+export class ClientRepository implements IProposalClientRepository {
   constructor(private prisma: PrismaClient) {}
 
-  async save(proposal: CreditProposal): Promise<IClientData> {
+  async save(proposal: CreditProposal): Promise<IProposalClientData> {
     try {
       const clientData = await this.prisma.tb_clientes.create({
         data: {
-          cpf: proposal.customerCpf,
-          valor_solicitado: proposal.financingValue,
-          id_produto: this.getProductId(proposal.productType),
+          cpf: cleanCpf(proposal.document),
+          valor_solicitado: cleanMoney(proposal.financedValue),
+          id_produto: this.getProductId(proposal.selectedProductOption),
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
-            : undefined,
-          parceiro: proposal.partnerId,
-          dt_ult_atualizacao: new Date().toISOString(),
+            : null,
+          parceiro: proposal.selectedPartnerOption || null,
           created_at: new Date()
         }
       })
-
-      console.log(`💾 Cliente salvo com ID: ${clientData.id}`)
       return clientData
     } catch (error) {
-      console.error('❌ Erro ao salvar cliente:', error)
-      throw new Error(`Falha ao salvar cliente: ${(error as Error).message}`)
+      throw new Error(
+        `Falha ao salvar cliente da proposta: ${(error as Error).message}`
+      )
     }
   }
 
   async saveDetails(
     proposal: CreditProposal,
     clientId: bigint
-  ): Promise<IClientDetailsData> {
+  ): Promise<IProposalClientDetailsData> {
     try {
-      // Converter valores monetários
-      const cleanMoneyValue = (value: string): number => {
-        if (typeof value === 'number') return value
-        return (
-          parseFloat(
-            value
-              ?.toString()
-              .replace(/[R$\s.,]/g, '')
-              .replace(',', '.') || '0'
-          ) || 0
-        )
-      }
-
-      const clientDetailsData = await this.prisma.clientes_detalhes.create({
+      const propertyValue = cleanMoney(proposal.propertyValue)
+      const financedValue = cleanMoney(proposal.financedValue)
+      const downPayment = propertyValue - financedValue
+      const clientDetails = await this.prisma.clientes_detalhes.create({
         data: {
-          cpf_cnpj: BigInt(proposal.customerCpf),
-          nome: proposal.customerName,
-          estado_civil: proposal.customerMaritalStatus,
-          tipo_imovel: proposal.propertyType,
-          sexo: proposal.customerGender,
-          tipo_contato: 'Celular',
+          cpf_cnpj: null,
+          nome: proposal.name,
+          estado_civil: proposal.maritalStatus.toLocaleUpperCase(),
+          nacionalidade: 'BRASILEIRA',
+          tipo_imovel: proposal.propertyType.toLocaleUpperCase(),
+          sexo: proposal.gender.toLocaleUpperCase(),
+          tipo_contato: 'CELULAR',
           rg: proposal.documentNumber,
-          tipo_endereco: 'Residencial',
-          tipo_renda: proposal.customerIncomeType,
-          tipo_amortizacao: proposal.amortizationType,
-          tipo_taxa_financiamento: proposal.financingRate,
-          UF_proponente: proposal.customerAddress.state,
-          CEP: proposal.customerAddress.zipCode,
-          valor_entrada: proposal.downPayment,
-          prazo: proposal.installments,
-          municipio_imovel: proposal.propertyCity,
-          FGTS: proposal.useFgts,
-          UF_imovel: proposal.propertyState,
+          tipo_endereco: 'RESIDENCIAL',
+          tipo_renda: proposal.workType.toLocaleUpperCase(),
+          tipo_amortizacao: proposal.amortization.toLocaleUpperCase(),
+          tipo_taxa_financiamento: proposal.financingRate.toLocaleUpperCase(),
+          UF_proponente: proposal.ufDataUser,
+          CEP: proposal.userAddress?.cep?.replace(/\D/g, '') || null,
+          valor_entrada: downPayment,
+          prazo: parseInt(proposal.term),
+          municipio_imovel: proposal.cities,
+          FGTS: proposal.useFGTS,
+          nr_pis: null,
+          UF_imovel: proposal.uf,
           tipo_carteira: 'SFH',
-          ITBI: proposal.useItbi,
-          vlr_itbi: proposal.itbiValue,
-          dt_nasc: proposal.customerBirthDate,
-          nome_mae: proposal.customerMotherName,
-          orgao_expedidor: proposal.documentIssuer,
-          uf_rg: proposal.documentUf,
-          data_emissao_rg: proposal.documentIssueDate,
-          nr_contato: proposal.customerPhone,
-          email: proposal.customerEmail,
-          endereco: proposal.customerAddress.street,
-          numero_endereco: proposal.customerAddress.number,
-          bairro_endereco: proposal.customerAddress.neighborhood,
-          complemento_endereco: proposal.customerAddress.complement,
-          cidade_endereco: proposal.customerAddress.city,
-          profissao: proposal.customerProfession,
-          regime_trabalho: proposal.customerWorkRegime,
-          vlr_renda_mensal: proposal.customerIncome,
-          estado_civil_cliente: proposal.customerMaritalStatus,
+          seguradora: 'ITAU',
+          ITBI: proposal.itbiPayment,
+          percent_itbi: proposal.itbiValue ? '3%' : null,
+          vlr_itbi: proposal.itbiValue ? cleanMoney(proposal.itbiValue) : 0,
+          id_incorporadora: proposal.construction?.businessPersonId
+            ? BigInt(proposal.construction.businessPersonId)
+            : null,
+          id_empreedimento: proposal.construction?.enterpriseId
+            ? BigInt(proposal.construction.enterpriseId)
+            : null,
+          id_bloco: proposal.construction?.blockId
+            ? BigInt(proposal.construction.blockId)
+            : null,
+          id_unidade: proposal.construction?.unitId
+            ? BigInt(proposal.construction.unitId)
+            : null,
+          dt_nasc: convertDateBrToIso(proposal.birthday),
+          nome_mae: proposal.motherName,
+          orgao_expedidor: proposal.documentIssuer.toLocaleUpperCase(),
+          uf_rg: proposal.ufDataUser,
+          data_emissao_rg: proposal.documentIssueDate || null,
+          nr_contato: proposal.phone.replace(/\D/g, ''),
+          email: proposal.email,
+          endereco: proposal.userAddress?.logradouro || null,
+          numero_endereco: proposal.userAddress?.number || null,
+          bairro_endereco: proposal.userAddress?.bairro || null,
+          complemento_endereco: proposal.userAddress?.complement || null,
+          cidade_endereco: proposal.userAddress?.localidade || null,
+          profissao: proposal.profession,
+          regime_trabalho: proposal.workType.toLocaleUpperCase(),
+          cnpj_empresa_cliente: null,
+          nome_empresa: null,
+          dados_bancarios: null,
+          data_admissao: null,
+          outras_rendas: null,
+          vlr_renda_mensal: cleanMoney(proposal.monthlyIncome),
+          estado_civil_cliente: proposal.maritalStatus.toLocaleUpperCase(),
+          regime_casamento: proposal.matrimonialRegime || null,
           segundo_proponente: !!proposal.spouse,
-          cpf_cliente: proposal.customerCpf,
+          uniao_estavel: proposal.maritalStatus.toLowerCase().includes('união'),
+          id_segundo_proponente: null,
+          id_terceiro_proponente: null,
+          terceiro_proponente: false,
+          cpf_cliente: cleanCpf(proposal.document),
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
-            : undefined,
-          parceiro: proposal.partnerId,
-          valor_imovel: proposal.propertyValue,
-          vlr_solicitado: proposal.financingValue,
-          vlr_fgts: proposal.fgtsValue,
-          tipo_documento: proposal.documentType,
+            : null,
+          id_lider: null,
+          parceiro: proposal.selectedPartnerOption || null,
+          valor_imovel: propertyValue,
+          credito_aprovado: null,
+          taxa_juros: null,
+          vlr_solicitado: financedValue,
+          vlr_fgts: proposal.fgtsValue ? cleanMoney(proposal.fgtsValue) : 0,
+          id_profissao: null,
+          tipo_documento: proposal.documentType.toLocaleUpperCase(),
+          cargo: proposal.professionalPosition || null,
+          tipo_residencia: 'PROPRIA',
+          agencia: proposal.agency ? BigInt(proposal.agency) : null,
+          conta: proposal.account ? BigInt(proposal.account) : null,
+          digitoConta: proposal.accountId ? BigInt(proposal.accountId) : null,
+          codigoCategoriaProfissao: null,
+          percent_itbi_number: proposal.itbiValue ? 3 : null,
           created_at: new Date()
         }
       })
-
-      console.log(
-        `💾 Detalhes do cliente salvos com ID: ${clientDetailsData.id}`
-      )
-      return clientDetailsData
+      return clientDetails
     } catch (error) {
-      console.error('❌ Erro ao salvar detalhes do cliente:', error)
+      console.error('❌ Erro ao salvar detalhes do cliente da proposta:', error)
+      console.error('❌ Detalhes do erro:', error)
       throw new Error(
-        `Falha ao salvar detalhes do cliente: ${(error as Error).message}`
+        `Falha ao salvar detalhes do cliente da proposta: ${(error as Error).message}`
       )
     }
   }
 
-  async findByCpf(cpf: string): Promise<IClientData | null> {
+  async findByCpf(cpf: string): Promise<IProposalClientData | null> {
     try {
-      const client = await this.prisma.tb_clientes.findUnique({
-        where: { cpf }
+      const client = await this.prisma.tb_clientes.findFirst({
+        where: {
+          cpf: cleanCpf(cpf)
+        }
       })
+
       return client
     } catch (error) {
-      console.error('❌ Erro ao buscar cliente por CPF:', error)
+      console.error('❌ Erro ao buscar cliente da proposta por CPF:', error)
+      return null
+    }
+  }
+
+  async findDetailsByCpf(
+    cpf: string
+  ): Promise<IProposalClientDetailsData | null> {
+    try {
+      const cpfNumber = BigInt(cleanCpf(cpf).replace(/\D/g, ''))
+      const details = await this.prisma.clientes_detalhes.findFirst({
+        where: {
+          cpf_cnpj: cpfNumber
+        }
+      })
+
+      return details
+    } catch (error) {
+      console.error('❌ Erro ao buscar detalhes do cliente da proposta:', error)
       return null
     }
   }
@@ -134,48 +179,55 @@ export class ClientRepository implements IClientRepository {
     proposalId: string
   ): Promise<void> {
     try {
-      const updateData: any = {}
-
-      switch (bankName.toLowerCase()) {
-        case 'itau':
-          updateData.id_itau = proposalId
-          break
-        case 'inter':
-          updateData.id_inter = proposalId
-          break
-        case 'santander':
-          updateData.id_santander = BigInt(proposalId)
-          break
-        case 'bradesco':
-          updateData.id_bradesco = BigInt(proposalId)
-          break
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
       }
-
-      updateData.dt_ult_atualizacao = new Date().toISOString()
+      const bankField = `id_${bankName.toLowerCase()}`
 
       await this.prisma.tb_clientes.update({
-        where: { cpf },
-        data: updateData
+        where: { id: client.id },
+        data: {
+          [bankField]: proposalId,
+          dt_ult_atualizacao: new Date().toISOString()
+        }
       })
-
-      console.log(
-        `💾 Cliente atualizado com proposta ${bankName}: ${proposalId}`
-      )
     } catch (error) {
-      console.error('❌ Erro ao atualizar proposta do cliente:', error)
-      throw new Error(
-        `Falha ao atualizar proposta do cliente: ${(error as Error).message}`
-      )
+      throw error
     }
   }
 
-  private getProductId(productType: string): number {
+  async updateProposalStatus(
+    cpf: string,
+    bankName: string,
+    status: string
+  ): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.tb_clientes.update({
+        where: { id: client.id },
+        data: {
+          situacao_itau_teste: status,
+          dt_ult_atualizacao: new Date().toISOString()
+        }
+      })
+    } catch (error) {
+      console.error('❌ Erro ao atualizar status da proposta:', error)
+      throw error
+    }
+  }
+
+  private getProductId(productOption: string): number {
     const productMap: { [key: string]: number } = {
       ISOLADO: 1,
       PILOTO: 2,
       REPASSE: 3,
       PORTABILIDADE: 4
     }
-    return productMap[productType] || 1
+    return productMap[productOption] || 1
   }
 }
