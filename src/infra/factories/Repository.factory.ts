@@ -52,7 +52,8 @@ export class RepositoryFactory {
 
   static ProfessionRepository(): ProfessionRepository {
     return new ProfessionRepository(this.getPrismaClient())
-    
+  }
+
   static createDeParaRepository(): DeParaRepository {
     return new DeParaRepository(this.getPrismaClient())
   }
