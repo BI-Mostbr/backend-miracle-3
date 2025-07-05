@@ -51,6 +51,7 @@ export interface BankResponseSimulation {
       renda?: number
       dt_nascimento?: string
       id_usuario?: string
+      erro_valor_solicitado?: string
     }
     bradesco?: {
       tipo_sistema_amortizador?: string
