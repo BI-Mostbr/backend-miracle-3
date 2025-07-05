@@ -1,91 +1,169 @@
 export interface CreditProposal {
-  // Dados do cliente principal
-  customerCpf: string
-  customerName: string
-  customerBirthDate: string
-  customerEmail: string
-  customerPhone: string
-  customerMotherName: string
-  customerGender: string
-  customerMaritalStatus: string
-  customerEducation?: string
-  customerProfession: string
-  customerIncomeType: string
-  customerIncome: number
-  customerWorkRegime: string
-
-  // Documentos do cliente
+  fluxo: 'normal' | 'reenvio' | 'adicionar-banco'
+  consultorId: number
+  userId?: number
+  partnerId?: string
+  selectedBanks: string[] // ['itau', 'santander', 'bradesco', 'cef', 'inter']
+  selectedProductOption: string
+  selectedPartnerOption?: string
+  propertyValue: string
+  financedValue: string
+  term: string
+  useFGTS: boolean
+  fgtsValue?: string
+  itbiPayment: boolean
+  itbiValue?: string
+  amortization: string
+  propertyType: string
+  uf: string
+  cities?: string
+  situation: string
+  financingRate: string
+  propertyTypeResidenceInfo?: string
+  document: string
+  name: string
+  birthday: string
+  phone: string
+  email: string
+  motherName: string
+  gender: 'masculino' | 'feminino'
   documentType: string
   documentNumber: string
   documentIssuer: string
   documentIssueDate: string
-  documentUf: string
-
-  // Endereço do cliente
-  customerAddress: {
-    zipCode: string
-    street: string
+  ufDataUser: string
+  monthlyIncome: string
+  profession: string
+  workType: string
+  professionalPosition: string
+  maritalStatus: string
+  matrimonialRegime?: string
+  marriageDate?: string
+  cepBankAgency: string
+  agencyBank?: string
+  account?: string
+  accountId?: string
+  agency?: string
+  userAddress: {
+    cep: string
+    logradouro: string
+    complemento?: string
+    unidade?: string
+    bairro: string
+    localidade: string
+    uf: string
+    estado: string
+    regiao: string
+    ibge: string
+    gia: string
+    ddd: string
+    siafi: string
     number: string
     complement?: string
-    neighborhood: string
-    city: string
-    state: string
-    addressType: string
   }
 
-  // Dados do cônjuge/segundo proponente (opcional)
-  spouse?: {
-    cpf: string
-    name: string
-    birthDate: string
-    email: string
-    phone: string
-    motherName: string
-    gender: string
-    education?: string
-    profession: string
-    incomeType: string
-    income: number
-    workRegime: string
-    composeIncome: boolean
+  security?: {
+    bank: Array<{
+      name: string
+      security: string
+    }>
+  }
 
-    // Documentos do cônjuge
+  spouse?: {
+    document: string
+    name: string
+    birthday: string
+    phone: string
+    email: string
+    motherName: string
     documentType: string
     documentNumber: string
     documentIssuer: string
     documentIssueDate: string
-    documentUf: string
+    gender: 'masculino' | 'feminino'
+    spouseUfDataUser: string
+    spouseContributesIncome: boolean
+    propertyType: string
+    cep: string
+    logradouro: string
+    bairro: string
+    localidade: string
+    number: string
+    complement: string
+    ufRedisence: string
+    profession: string
+    workType: string
+    monthlyIncome: string
+    professionalPosition: string
+    civilStatus: string
+    complemento?: string
+    unidade?: string
+    uf: string
+    estado: string
+    regiao: string
+    ibge: string
+    gia: string
+    ddd: string
+    siafi: string
+  }
 
-    // Endereço do cônjuge
-    address: {
-      zipCode: string
-      street: string
+  secondProponent?: {
+    document: string
+    name: string
+    birthday: string
+    phone: string
+    email: string
+    motherName: string
+    documentType: string
+    documentNumber: string
+    documentIssuer: string
+    documentIssueDate: string
+    gender: 'masculino' | 'feminino'
+    uf: string
+    spouseContributesIncome: boolean
+    propertyType: string
+    cep: string
+    logradouro: string
+    bairro: string
+    localidade: string
+    number: string
+    complement: string
+    ufRedisence: string
+    profession: string
+    workType: string
+    monthlyIncome: string
+    professionalPosition: string
+    civilStatus: string
+    spouseSecondProponent?: {
+      document: string
+      name: string
+      birthday: string
+      phone: string
+      email: string
+      motherName: string
+      documentType: string
+      documentNumber: string
+      documentIssuer: string
+      documentIssueDate: string
+      gender: 'masculino' | 'feminino'
+      uf: string
+      spouseContributesIncome: boolean
+      propertyType: string
+      cep: string
+      logradouro: string
+      bairro: string
+      localidade: string
       number: string
-      complement?: string
-      neighborhood: string
-      city: string
-      state: string
-      addressType: string
+      complement: string
+      ufRedisence: string
+      profession: string
+      workType: string
+      monthlyIncome: string
+      professionalPosition: string
+      includesIncome: boolean
     }
   }
 
-  // Dados da proposta
-  productType: string // ISOLADO, PILOTO, REPASSE, PORTABILIDADE
-  propertyType: string
-  propertyValue: number
-  financingValue: number
-  downPayment: number
-  installments: number
-  amortizationType: string
-  financingRate: string
-  propertyState: string
-  propertyCity?: string
-  useFgts: boolean
-  fgtsValue?: number
-  useItbi: boolean
-  itbiValue?: number
-
-  // Dados específicos para construção (PILOTO/REPASSE)
   construction?: {
     businessPersonId: string
     enterpriseId: string
@@ -93,16 +171,9 @@ export interface CreditProposal {
     unitId?: string
   }
 
-  // Dados específicos para portabilidade
   portability?: {
     outstandingBalance: number
     remainingPeriod: number
     originalPeriod: number
   }
-
-  // Controle de fluxo
-  flowType: 'normal' | 'reenvio' | 'adicionar-banco'
-  userId: number
-  consultorId?: number
-  partnerId?: string
 }

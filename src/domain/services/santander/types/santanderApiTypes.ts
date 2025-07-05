@@ -41,3 +41,64 @@ export interface SantanderApiCustomPayload {
   nrPgCom: string
   userCode: string
 }
+
+export interface SantanderAnalyzeCreditPayload {
+  query: string
+  variables: {
+    inputDataCredit: {
+      simulationId: string
+      utmSource: string
+      nrPgCom: string
+      userCode: string
+    }
+  }
+}
+
+export interface SantanderIntegrateMiniPersonasPayload {
+  query: string
+  variables: {
+    idSimulation: string
+    body: {
+      utmSource: string
+      nrPgCom: string
+      userCode: string
+      clientData: {
+        cpf: string
+        name: string
+        gender: string
+        motherName: string
+        natureOfOccupation: string
+        occupation: string
+        role: string
+        company: string
+        admissionDate: string
+        email: string
+        areaCodeCellPhone: string
+        cellPhone: string
+        areaCodeHomePhone: string
+        homePhoneNumber: string
+        maritalStatus: string
+        isConsensualMarriage: boolean
+        marriageDate: string | null
+        matrimonialRegime: string | null
+        nationality: string
+        documentType: string
+        documentNumber: string
+        documentIssuingAuthority: string
+        documentIssueState: string
+        documentIssueDate: string
+        addressData: {
+          zipCode: string
+          streetType: string
+          address: string
+          houseNumber: string
+          addressComplement: string
+          neighborhood: string
+          city: string
+          state: string
+          residenceType: string
+        }
+      }
+    }
+  }
+}

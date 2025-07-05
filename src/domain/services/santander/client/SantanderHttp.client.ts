@@ -94,7 +94,7 @@ export class SantanderHttpClient {
       if ((error as any).message?.startsWith('Business error:')) {
         // Handle custom business error
         const statusCode = (error as any).message.split(': ')[1]
-        throw new Error(`Erro de negócio: ${statusCode}`)
+        throw new Error(`Erro de negócio na simulação: ${statusCode}`)
       }
 
       if (axios.isAxiosError(error)) {
@@ -111,19 +111,23 @@ export class SantanderHttpClient {
 
         if (status === 401) {
           throw new Error(
-            'Bearer token inválido ou expirado - renovação necessária'
+            'Simulação - Bearer token inválido ou expirado - renovação necessária'
           )
         } else if (status === 403) {
-          throw new Error('Token não tem permissão para simulação de crédito')
+          throw new Error(
+            'Simulação - Token não tem permissão para simulação de crédito'
+          )
         } else if (status === 500) {
           throw new Error(
-            'Erro interno do servidor do Santander - tente novamente mais tarde'
+            'Simulação - Erro interno do servidor do Santander - tente novamente mais tarde'
           )
         } else if (status === 503) {
-          throw new Error('Serviço do Santander temporariamente indisponível')
+          throw new Error(
+            'Simulação - Serviço do Santander temporariamente indisponível'
+          )
         }
         throw new Error(
-          `Erro na API do Itaú (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+          `Simulação - Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
         )
       }
     }
@@ -153,7 +157,7 @@ export class SantanderHttpClient {
       const decrypted = JSON.parse(decryptAes(response.data.enc))
       if (decrypted.errors && decrypted.errors.length > 0) {
         const message = decrypted.errors[0].extensions.messages[1].message
-        throw new Error(`Business error: ${message}`)
+        throw new Error(`Business error simulation custom: ${message}`)
       }
 
       return response.data
@@ -161,7 +165,7 @@ export class SantanderHttpClient {
       if ((error as any).message?.startsWith('Business error:')) {
         // Handle custom business error
         const statusCode = (error as any).message.split(': ')[1]
-        throw new Error(`Erro de negócio: ${statusCode}`)
+        throw new Error(`Simulação Custom - Erro de negócio: ${statusCode}`)
       }
 
       if (axios.isAxiosError(error)) {
@@ -178,19 +182,224 @@ export class SantanderHttpClient {
 
         if (status === 401) {
           throw new Error(
-            'Bearer token inválido ou expirado - renovação necessária'
+            'Simulação Custom - Bearer token inválido ou expirado - renovação necessária'
           )
         } else if (status === 403) {
-          throw new Error('Token não tem permissão para simulação de crédito')
+          throw new Error(
+            'Simulação Custom - Token não tem permissão para simulação de crédito'
+          )
         } else if (status === 500) {
           throw new Error(
-            'Erro interno do servidor do Santander - tente novamente mais tarde'
+            'Simulação Custom - Erro interno do servidor do Santander - tente novamente mais tarde'
           )
         } else if (status === 503) {
-          throw new Error('Serviço do Santander temporariamente indisponível')
+          throw new Error(
+            'Simulação Custom - Serviço do Santander temporariamente indisponível'
+          )
         }
         throw new Error(
           `Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+        )
+      }
+    }
+  }
+
+  async saveSimulation(
+    idSimulation: string,
+    accessToken: string
+  ): Promise<any> {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+
+    try {
+      const url = `/partnerSimulation/partnerSimulation/saveDataSimulation?id_simulation=${idSimulation}&userCode=fe2f76b8b0341c6c213d8edc932c75aa&nrPgCom=fe2f76b8b0341c29&utmSource=d1120ef29b280b63`
+      const response = await this.axiosInstance.post(url, {
+        headers
+      })
+
+      const decrypted = JSON.parse(decryptAes(response.data.enc))
+
+      if (decrypted.errors && decrypted.errors.length > 0) {
+        const message = decrypted.errors[0].extensions.messages[1].message
+        throw new Error(`Business error saveSimulation: ${message}`)
+      }
+
+      return response.data
+    } catch (error) {
+      if (
+        (error as any).message?.startsWith(
+          'Business error saveSimulationSantander:'
+        )
+      ) {
+        // Handle custom business error
+        const statusCode = (error as any).message.split(': ')[1]
+        throw new Error(
+          `Erro de negócio no saveSimulationSantander: ${statusCode}`
+        )
+      }
+
+      if (axios.isAxiosError(error)) {
+        console.log(error)
+        const status = error.response?.status
+        const data = error.response?.data
+        const responseHeaders = error.response?.headers
+
+        console.error(`Status: ${status}`)
+        console.error(`Response Headers:`)
+        console.error(JSON.stringify(responseHeaders, null, 2))
+        console.error(`Response Data:`)
+        console.error(JSON.stringify(data, null, 2))
+
+        if (status === 401) {
+          throw new Error(
+            'saveSimulationSantander - Bearer token inválido ou expirado - renovação necessária'
+          )
+        } else if (status === 403) {
+          throw new Error(
+            'saveSimulationSantander - Token não tem permissão para simulação de crédito'
+          )
+        } else if (status === 500) {
+          throw new Error(
+            'saveSimulationSantander - Erro interno do servidor do Santander - tente novamente mais tarde'
+          )
+        } else if (status === 503) {
+          throw new Error(
+            'saveSimulationSantander - Serviço do Santander temporariamente indisponível'
+          )
+        }
+        throw new Error(
+          `saveSimulation - Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+        )
+      }
+    }
+  }
+
+  async analyzeCredit(payload: string, accessToken: string): Promise<any> {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+    try {
+      const body = {
+        enc: payload
+      }
+      const response = await this.axiosInstance.post(
+        '/partnerGraphql/graphql/analyzeCredit',
+        body,
+        {
+          headers
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      if ((error as any).message?.startsWith('Business error:')) {
+        // Handle custom business error
+        const statusCode = (error as any).message.split(': ')[1]
+        throw new Error(
+          `Erro de negócio no analyzeCreditSantander: ${statusCode}`
+        )
+      }
+
+      if (axios.isAxiosError(error)) {
+        console.log(error)
+        const status = error.response?.status
+        const data = error.response?.data
+        const responseHeaders = error.response?.headers
+
+        console.error(`Status: ${status}`)
+        console.error(`Response Headers:`)
+        console.error(JSON.stringify(responseHeaders, null, 2))
+        console.error(`Response Data:`)
+        console.error(JSON.stringify(data, null, 2))
+
+        if (status === 401) {
+          throw new Error(
+            'analyzeCreditSantander - Bearer token inválido ou expirado - renovação necessária'
+          )
+        } else if (status === 403) {
+          throw new Error(
+            'analyzeCreditSantander - Token não tem permissão para simulação de crédito'
+          )
+        } else if (status === 500) {
+          throw new Error(
+            'analyzeCreditSantander - Erro interno do servidor do Santander - tente novamente mais tarde'
+          )
+        } else if (status === 503) {
+          throw new Error(
+            'analyzeCreditSantander - Serviço do Santander temporariamente indisponível'
+          )
+        }
+        throw new Error(
+          `analyzeCreditSantander - Erro na API do Itaú (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+        )
+      }
+    }
+  }
+
+  async integrateMiniPersonas(
+    payload: string,
+    accessToken: string
+  ): Promise<any> {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+    try {
+      const body = {
+        enc: payload
+      }
+      const response = await this.axiosInstance.post(
+        '/partnerGraphql/graphql/integrateClientMiniPersonas',
+        body,
+        {
+          headers
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      if ((error as any).message?.startsWith('Business error:')) {
+        // Handle custom business error
+        const statusCode = (error as any).message.split(': ')[1]
+        throw new Error(
+          `Erro de negócio no integrateMiniPersonasSantander: ${statusCode}`
+        )
+      }
+
+      if (axios.isAxiosError(error)) {
+        console.log(error)
+        const status = error.response?.status
+        const data = error.response?.data
+        const responseHeaders = error.response?.headers
+
+        console.error(`Status: ${status}`)
+        console.error(`Response Headers:`)
+        console.error(JSON.stringify(responseHeaders, null, 2))
+        console.error(`Response Data:`)
+        console.error(JSON.stringify(data, null, 2))
+
+        if (status === 401) {
+          throw new Error(
+            'integrateMiniPersonasSantander - Bearer token inválido ou expirado - renovação necessária'
+          )
+        } else if (status === 403) {
+          throw new Error(
+            'integrateMiniPersonasSantander - Token não tem permissão para simulação de crédito'
+          )
+        } else if (status === 500) {
+          throw new Error(
+            'integrateMiniPersonasSantander - Erro interno do servidor do Santander - tente novamente mais tarde'
+          )
+        } else if (status === 503) {
+          throw new Error(
+            'integrateMiniPersonasSantander - Serviço do Santander temporariamente indisponível'
+          )
+        }
+        throw new Error(
+          `integrateMiniPersonasSantander - Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
         )
       }
     }
@@ -222,25 +431,27 @@ export class SantanderHttpClient {
 
         if (status === 401) {
           throw new Error(
-            'Bearer token inválido ou expirado - renovação necessária'
+            'getPdfSantander - Bearer token inválido ou expirado - renovação necessária'
           )
         } else if (status === 403) {
           throw new Error(
-            'Token não tem permissão para extrair PDF da simulação;'
+            'getPdfSantander - Token não tem permissão para extrair PDF da simulação;'
           )
         } else if (status === 500) {
           throw new Error(
-            'Erro interno do servidor do Santander - tente novamente mais tarde'
+            'getPdfSantander - Erro interno do servidor do Santander - tente novamente mais tarde'
           )
         } else if (status === 503) {
-          throw new Error('Serviço do Santander temporariamente indisponível')
+          throw new Error(
+            'getPdfSantander - Serviço do Santander temporariamente indisponível'
+          )
         } else if (status === 400) {
           throw new Error(
-            'Erro interno do servidor do Santander - tente novamente mais tarde'
+            'getPdfSantander - Erro interno do servidor do Santander - tente novamente mais tarde'
           )
         }
         throw new Error(
-          `Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
+          `getPdfSantander - Erro na API do Santander (${status}): ${data?.message || data?.error_description || 'Erro desconhecido'}`
         )
       }
       throw error

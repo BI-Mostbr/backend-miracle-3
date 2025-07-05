@@ -31,3 +31,20 @@ export function mapToPropertyTypeInter(propertyType: string): string {
   }
   return property
 }
+
+export function mapToPropertyTypeSantander(propertyType: string): string {
+  let property = 'R'
+
+  switch (propertyType) {
+    case 'Residencial':
+      property = 'R'
+      break
+    case 'Comercial':
+      property = 'C'
+      break
+    default:
+      property = 'R'
+      break
+  }
+  return property
+}

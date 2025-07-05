@@ -6,6 +6,7 @@ import { InterProposalRepository } from '@infra/repositories/InterProposal.repos
 import { InterSimulationRepository } from '@infra/repositories/InterSimulation.repostory'
 import { ItauProposalRepository } from '@infra/repositories/ItauProposal.repository'
 import { ItauSimulationRepository } from '@infra/repositories/ItauSimulation.repository'
+import { ProfessionRepository } from '@infra/repositories/Professions.repository'
 import { SantanderSimulationRepository } from '@infra/repositories/SantanderSimulation.repository'
 import { UserRepository } from '@infra/repositories/User.repository'
 import { PrismaClient } from '@prisma/client'
@@ -48,6 +49,10 @@ export class RepositoryFactory {
 
   static createUserRepository(): UserRepository {
     return new UserRepository(this.getPrismaClient())
+  }
+
+  static ProfessionRepository(): ProfessionRepository {
+    return new ProfessionRepository(this.getPrismaClient())
   }
 
   static async disconnect(): Promise<void> {
