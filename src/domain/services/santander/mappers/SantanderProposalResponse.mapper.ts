@@ -2,7 +2,7 @@ import { BankResponseSimulation, CreditProposal } from '@domain/entities'
 import { convertDateBrToIso } from 'Utils/convertData'
 import { decryptJasypt } from 'Utils/crypto'
 
-export class SantanderResponseMapper {
+export class SantanderProposalResponseMapper {
   static convertToInternApiResponse(
     santanderResponse: any,
     proposal: CreditProposal

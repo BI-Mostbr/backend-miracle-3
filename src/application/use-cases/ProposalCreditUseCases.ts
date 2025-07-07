@@ -7,6 +7,7 @@ import { ItauApiService } from '@domain/services/itau/ItauApiService'
 import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauProposalDetails.mapper'
 import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
 import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
+import { SantanderProposalDetailsMapper } from '@domain/services/santander/mappers/SantanderProposalDetails.mapper'
 
 export interface ProposalResult {
   bankName: string
@@ -305,7 +306,7 @@ export class SendProposalUseCase {
           break
 
         case 'santander':
-          console.log(`⚠️ Santander repository não implementado ainda`)
+          await this.saveSantanderProposal(proposal, bankResponse, clientId)
           break
 
         default:
@@ -361,6 +362,25 @@ export class SendProposalUseCase {
   ): Promise<void> {
     const interRepo = RepositoryFactory.createInterProposalRepository()
     await interRepo.save(proposal, bankResponse, proposal.fluxo)
+  }
+
+  private async saveSantanderProposal(
+    proposal: CreditProposal,
+    bankResponse: BankProposalResponse,
+    clientId?: bigint
+  ): Promise<void> {
+    console.log('chamando save tb_santander')
+    const sanatanderRepo = RepositoryFactory.createSantanderProposalRepository()
+    const deParaRepo = RepositoryFactory.createDeParaRepository()
+    const santanderdetails =
+      await SantanderProposalDetailsMapper.mapFromSantanderResponse(
+        bankResponse,
+        proposal,
+        deParaRepo,
+        clientId
+      )
+    console.log(santanderdetails)
+    await sanatanderRepo.save(santanderdetails, clientId)
   }
 
   private findBankService(bankName: string): IBankProposalApiService {

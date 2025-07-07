@@ -8,7 +8,7 @@ export class SantanderAnalyzeCreditPayloadMapper {
       variables: {
         inputDataCredit: {
           simulationId: simulationId,
-          utmSource: 'string',
+          utmSource: 'mostpp',
           nrPgCom: '20495',
           userCode: '204951587699'
         }

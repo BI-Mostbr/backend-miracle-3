@@ -2,7 +2,11 @@ import axios, { AxiosInstance } from 'axios'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import { SantanderApiPayload } from '../types/santanderApiTypes'
+import {
+  SantanderAnalyzeCreditPayload,
+  SantanderApiPayload,
+  SantanderIntegrateMiniPersonasPayload
+} from '../types/santanderApiTypes'
 import { decryptAes } from 'Utils/crypto'
 
 export class SantanderHttpClient {
@@ -75,6 +79,7 @@ export class SantanderHttpClient {
       const body = {
         enc: payload
       }
+
       const response = await this.axiosInstance.post(
         '/partnerGraphql/graphql/statementSimulation',
         body,
@@ -82,12 +87,6 @@ export class SantanderHttpClient {
           headers
         }
       )
-
-      const decrypted = JSON.parse(decryptAes(response.data.enc))
-      if (decrypted.errors && decrypted.errors.length > 0) {
-        const message = decrypted.errors[0].extensions.messages[1].message
-        throw new Error(`Business error: ${message}`)
-      }
 
       return response.data
     } catch (error) {
@@ -213,18 +212,15 @@ export class SantanderHttpClient {
       Authorization: `Bearer ${accessToken}`
     }
 
+    const body = {}
     try {
       const url = `/partnerSimulation/partnerSimulation/saveDataSimulation?id_simulation=${idSimulation}&userCode=fe2f76b8b0341c6c213d8edc932c75aa&nrPgCom=fe2f76b8b0341c29&utmSource=d1120ef29b280b63`
-      const response = await this.axiosInstance.post(url, {
+
+      const response = await this.axiosInstance.post(url, body, {
         headers
       })
 
-      const decrypted = JSON.parse(decryptAes(response.data.enc))
-
-      if (decrypted.errors && decrypted.errors.length > 0) {
-        const message = decrypted.errors[0].extensions.messages[1].message
-        throw new Error(`Business error saveSimulation: ${message}`)
-      }
+      // const decrypted = JSON.parse(decryptAes(response.data.enc))
 
       return response.data
     } catch (error) {
@@ -285,6 +281,7 @@ export class SantanderHttpClient {
       const body = {
         enc: payload
       }
+
       const response = await this.axiosInstance.post(
         '/partnerGraphql/graphql/analyzeCredit',
         body,
