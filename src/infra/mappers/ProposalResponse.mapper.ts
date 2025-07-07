@@ -40,7 +40,6 @@ export class ProposalResponseMapper {
   ): Promise<ProposalOferta> {
     const bankNameLower = bankResult.bankName.toLowerCase()
 
-    // Usar valor ajustado se disponível, senão usar valor original da proposta
     const creditoSolicitadoValue = bankResult.adjustedFinancedValue
       ? CreditProposalMapper.parseMoneyString(bankResult.adjustedFinancedValue)
       : CreditProposalMapper.getFinancedValueAsNumber(proposal)
@@ -78,9 +77,16 @@ export class ProposalResponseMapper {
 
     const observacao = this.buildObservacao(bankResult)
 
+    const proposalId = bankResult.success
+      ? bankResult.proposalNumber ||
+        bankResult.proposalId ||
+        BANK_IDS[bankNameLower] ||
+        (index + 1).toString()
+      : BANK_IDS[bankNameLower] || (index + 1).toString()
+
     return {
       url: BANK_LOGOS[bankNameLower] || BANK_LOGOS['bradesco'],
-      id: BANK_IDS[bankNameLower] || (index + 1).toString(),
+      id: proposalId,
       banco: this.formatBankName(bankResult.bankName),
       status,
       credito_solicitado: creditoSolicitado,
