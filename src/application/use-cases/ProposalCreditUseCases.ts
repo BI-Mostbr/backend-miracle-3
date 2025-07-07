@@ -15,9 +15,9 @@ export interface ProposalResult {
   proposalId?: string
   proposalNumber?: string
   error?: string
-  adjustments?: any[] // NOVO: Ajustes aplicados
-  originalFinancedValue?: string // NOVO: Valor original antes do ajuste
-  adjustedFinancedValue?: string // NOVO: Valor após ajuste
+  adjustments?: any[]
+  originalFinancedValue?: string
+  adjustedFinancedValue?: string
 }
 
 export interface SendProposalResult {
@@ -25,8 +25,8 @@ export interface SendProposalResult {
   results: ProposalResult[]
   clientId?: bigint
   flowType: string
-  totalAdjustments?: number // NOVO: Total de ajustes aplicados
-  summary?: string // NOVO: Resumo das operações
+  totalAdjustments?: number
+  summary?: string
 }
 
 export class SendProposalUseCase {
@@ -39,12 +39,21 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankName: string
   ): Promise<SendProposalResult> {
-    // 1. Validação básica
     if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
-    // 2. Validação e ajuste específico do banco
+    if (proposal.fluxo === 'normal') {
+      const existingClient = await this.proposalClientRepository.findByCpf(
+        CreditProposalMapper.getCleanCpf(proposal)
+      )
+      if (existingClient) {
+        throw new Error(
+          'CPF já está cadastrado. Use o fluxo "reenvio" ou "adicionar-banco".'
+        )
+      }
+    }
+
     const validationResult = ProposalDomainService.validateAndAdjustForBank(
       proposal,
       bankName
@@ -56,17 +65,14 @@ export class SendProposalUseCase {
       )
     }
 
-    // 3. Guardar valores originais para comparação
     const originalFinancedValue = proposal.financedValue
 
-    // 4. Usar a proposta ajustada para envio
     const adjustedProposal = validationResult.adjustedProposal || proposal
     const bankService = this.findBankService(bankName)
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
 
     try {
-      // 5. Enviar proposta ajustada para o banco
       const bankResponse = await bankService.sendProposal(adjustedProposal)
 
       clientId = await this.executeFlowLogic(adjustedProposal)
@@ -91,7 +97,6 @@ export class SendProposalUseCase {
         )
       }
 
-      // 6. Incluir informações de ajuste no resultado
       results.push({
         bankName,
         success: true,
@@ -126,7 +131,7 @@ export class SendProposalUseCase {
       return {
         success: false,
         results,
-        clientId,
+        clientId: undefined,
         flowType: adjustedProposal.fluxo,
         totalAdjustments: validationResult.adjustments?.length || 0,
         summary: 'Erro no envio da proposta'
@@ -138,12 +143,22 @@ export class SendProposalUseCase {
     proposal: CreditProposal,
     bankNames: string[]
   ): Promise<SendProposalResult> {
-    // 1. Validação básica
     if (!ProposalDomainService.validateBusinessRules(proposal)) {
       throw new Error('Proposta não atende às regras de negócio')
     }
 
-    // 2. Validação e ajuste para múltiplos bancos
+    if (proposal.fluxo === 'normal') {
+      const existingClient = await this.proposalClientRepository.findByCpf(
+        CreditProposalMapper.getCleanCpf(proposal)
+      )
+      if (existingClient) {
+        throw new Error(
+          'CPF já está cadastrado. Use o fluxo "reenvio" ou "adicionar-banco".'
+        )
+      }
+    }
+
+    // 3. Validação e ajuste para múltiplos bancos
     const multiValidation =
       ProposalDomainService.validateAndAdjustForMultipleBanks(
         proposal,
@@ -159,8 +174,8 @@ export class SendProposalUseCase {
     const results: ProposalResult[] = []
     let clientId: bigint | undefined
     let totalAdjustments = 0
+    let hasSuccessfulBank = false
 
-    // 3. Enviar para cada banco válido usando a proposta ajustada específica
     for (const bankName of multiValidation.validBanks) {
       try {
         const bankService = this.findBankService(bankName)
@@ -168,12 +183,12 @@ export class SendProposalUseCase {
         const bankAdjustments =
           multiValidation.results[bankName]?.adjustments || []
 
-        // Executar lógica de fluxo apenas uma vez
+        const bankResponse = await bankService.sendProposal(adjustedProposal)
+        hasSuccessfulBank = true
+
         if (!clientId) {
           clientId = await this.executeFlowLogic(adjustedProposal)
         }
-
-        const bankResponse = await bankService.sendProposal(adjustedProposal)
 
         await this.saveBankProposal(
           adjustedProposal,
@@ -225,7 +240,6 @@ export class SendProposalUseCase {
       }
     }
 
-    // 4. Adicionar bancos rejeitados aos resultados
     multiValidation.invalidBanks.forEach((bankName) => {
       const bankErrors = multiValidation.errors
         .filter((error) => error.startsWith(`${bankName}:`))
@@ -242,13 +256,24 @@ export class SendProposalUseCase {
       })
     })
 
+    if (!hasSuccessfulBank) {
+      return {
+        success: false,
+        results,
+        clientId: undefined,
+        flowType: proposal.fluxo,
+        totalAdjustments,
+        summary: `Nenhum banco aprovou a proposta. ${multiValidation.validBanks.length}/${bankNames.length} banco(s) tentados.`
+      }
+    }
+
     return {
-      success: results.some((r) => r.success),
+      success: hasSuccessfulBank,
       results,
       clientId,
       flowType: proposal.fluxo,
       totalAdjustments,
-      summary: `${multiValidation.validBanks.length}/${bankNames.length} banco(s) aprovaram. ${totalAdjustments} ajuste(s) aplicado(s)`
+      summary: `${results.filter((r) => r.success).length}/${bankNames.length} banco(s) aprovaram. ${totalAdjustments} ajuste(s) aplicado(s)`
     }
   }
 
