@@ -35,15 +35,15 @@ export const STATUS_MAPPING: StatusMapping = {
 }
 
 export const BANK_LOGOS: { [key: string]: string } = {
-  itau: 'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_itau.png',
+  itau: 'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos//logoItau.png',
   inter:
-    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_inter.png',
+    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos//logo-inter.png',
   santander:
-    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_santander.png',
+    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos//logoSantander.png',
   bradesco:
-    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_bradesco.png',
+    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos//logo_bradesco.png',
   caixa:
-    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos/logo_caixa.png'
+    'https://qpakafibmkvtswvwsmek.supabase.co/storage/v1/object/public/logoBancos//logo-caixa.png'
 }
 
 export const BANK_IDS: { [key: string]: string } = {

@@ -114,7 +114,7 @@ export class ItauProposalPayloadMapper {
                     }
                   ]
                 }
-              : null // ✅ Explicitamente null quando não há cônjuge
+              : null
           },
           contacts: [
             {

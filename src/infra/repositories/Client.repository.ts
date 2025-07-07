@@ -41,20 +41,26 @@ export class ClientRepository implements IProposalClientRepository {
       const propertyValue = cleanMoney(proposal.propertyValue)
       const financedValue = cleanMoney(proposal.financedValue)
       const downPayment = propertyValue - financedValue
+
+      // Helper para tratar campos opcionais com toLocaleUpperCase
+      const safeUpperCase = (value: string | undefined): string => {
+        return value ? value.toLocaleUpperCase() : ''
+      }
+
       const clientDetails = await this.prisma.clientes_detalhes.create({
         data: {
           cpf_cnpj: null,
           nome: proposal.name,
-          estado_civil: proposal.maritalStatus.toLocaleUpperCase(),
+          estado_civil: safeUpperCase(proposal.maritalStatus),
           nacionalidade: 'BRASILEIRA',
-          tipo_imovel: proposal.propertyType.toLocaleUpperCase(),
-          sexo: proposal.gender.toLocaleUpperCase(),
+          tipo_imovel: safeUpperCase(proposal.propertyType),
+          sexo: safeUpperCase(proposal.gender),
           tipo_contato: 'CELULAR',
           rg: proposal.documentNumber,
           tipo_endereco: 'RESIDENCIAL',
-          tipo_renda: proposal.workType.toLocaleUpperCase(),
-          tipo_amortizacao: proposal.amortization.toLocaleUpperCase(),
-          tipo_taxa_financiamento: proposal.financingRate.toLocaleUpperCase(),
+          tipo_renda: safeUpperCase(proposal.workType),
+          tipo_amortizacao: safeUpperCase(proposal.amortization),
+          tipo_taxa_financiamento: safeUpperCase(proposal.financingRate),
           UF_proponente: proposal.ufDataUser,
           CEP: proposal.userAddress?.cep?.replace(/\D/g, '') || null,
           valor_entrada: downPayment,
@@ -82,7 +88,7 @@ export class ClientRepository implements IProposalClientRepository {
             : null,
           dt_nasc: convertDateBrToIso(proposal.birthday),
           nome_mae: proposal.motherName,
-          orgao_expedidor: proposal.documentIssuer.toLocaleUpperCase(),
+          orgao_expedidor: safeUpperCase(proposal.documentIssuer),
           uf_rg: proposal.ufDataUser,
           data_emissao_rg: proposal.documentIssueDate || null,
           nr_contato: proposal.phone.replace(/\D/g, ''),
@@ -93,17 +99,18 @@ export class ClientRepository implements IProposalClientRepository {
           complemento_endereco: proposal.userAddress?.complement || null,
           cidade_endereco: proposal.userAddress?.localidade || null,
           profissao: proposal.profession,
-          regime_trabalho: proposal.workType.toLocaleUpperCase(),
+          regime_trabalho: safeUpperCase(proposal.workType),
           cnpj_empresa_cliente: null,
           nome_empresa: null,
           dados_bancarios: null,
           data_admissao: null,
           outras_rendas: null,
           vlr_renda_mensal: cleanMoney(proposal.monthlyIncome),
-          estado_civil_cliente: proposal.maritalStatus.toLocaleUpperCase(),
+          estado_civil_cliente: safeUpperCase(proposal.maritalStatus),
           regime_casamento: proposal.matrimonialRegime || null,
           segundo_proponente: !!proposal.spouse,
-          uniao_estavel: proposal.maritalStatus.toLowerCase().includes('união'),
+          uniao_estavel:
+            proposal.maritalStatus?.toLowerCase().includes('união') || false,
           id_segundo_proponente: null,
           id_terceiro_proponente: null,
           terceiro_proponente: false,
@@ -119,7 +126,7 @@ export class ClientRepository implements IProposalClientRepository {
           vlr_solicitado: financedValue,
           vlr_fgts: proposal.fgtsValue ? cleanMoney(proposal.fgtsValue) : 0,
           id_profissao: null,
-          tipo_documento: proposal.documentType.toLocaleUpperCase(),
+          tipo_documento: safeUpperCase(proposal.documentType),
           cargo: proposal.professionalPosition || null,
           tipo_residencia: 'PROPRIA',
           agencia: proposal.agency ? BigInt(proposal.agency) : null,
