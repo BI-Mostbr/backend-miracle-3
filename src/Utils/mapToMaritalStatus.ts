@@ -20,6 +20,9 @@ export function maritalStatusSantander(value: string) {
     case 'viuvo':
       maritalStatus = '5'
       break
+    case 'casado_no_exterior':
+      maritalStatus = '8'
+      break
   }
 
   return maritalStatus

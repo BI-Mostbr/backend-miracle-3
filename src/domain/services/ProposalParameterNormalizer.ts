@@ -64,6 +64,18 @@ export class BankProposalNormalizer {
         Comercial: { min: 60, max: 240 }
       },
       minimumPropertyValue: 0
+    },
+    santander: {
+      bankName: 'santander',
+      ltvLimits: {
+        Residencial: { max: 80 },
+        Comercial: { max: 70 }
+      },
+      termLimits: {
+        Residencial: { min: 60, max: 420 },
+        Comercial: { min: 60, max: 240 }
+      },
+      minimumPropertyValue: 0
     }
   }
 

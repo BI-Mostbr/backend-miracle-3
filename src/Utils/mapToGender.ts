@@ -1,7 +1,7 @@
 export function genderSantander(value: string) {
   let gender = 'masculino'
 
-  if (gender === 'feminino') {
+  if (value === 'feminino') {
     gender = 'F'
   } else {
     gender = 'M'
