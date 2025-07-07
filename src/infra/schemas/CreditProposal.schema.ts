@@ -26,18 +26,25 @@ const PersonSchema = z.object({
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA'),
   phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   email: z.string().email('Email inválido'),
-  motherName: z.string().min(2, 'Nome da mãe deve ter pelo menos 2 caracteres'),
-  documentType: z.string().min(1, 'Tipo de documento é obrigatório'),
-  documentNumber: z.string().min(1, 'Número do documento é obrigatório'),
-  documentIssuer: z.string().min(1, 'Órgão expedidor é obrigatório'),
+  motherName: z
+    .string()
+    .min(2, 'Nome da mãe deve ter pelo menos 2 caracteres')
+    .optional(),
+  documentType: z.string().min(1, 'Tipo de documento é obrigatório').optional(),
+  documentNumber: z
+    .string()
+    .min(1, 'Número do documento é obrigatório')
+    .optional(),
+  documentIssuer: z.string().min(1, 'Órgão expedidor é obrigatório').optional(),
   documentIssueDate: z
     .string()
-    .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA'),
-  gender: z.enum(['masculino', 'feminino']),
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA')
+    .optional(),
+  gender: z.enum(['masculino', 'feminino']).optional(),
   profession: z.string().min(1, 'Profissão é obrigatória'),
   workType: z.string().min(1, 'Tipo de trabalho é obrigatório'),
   monthlyIncome: z.string().min(1, 'Renda mensal é obrigatória'),
-  professionalPosition: z.string().min(1, 'Cargo é obrigatório')
+  professionalPosition: z.string().min(1, 'Cargo é obrigatório').optional()
 })
 
 const SpouseSchema = PersonSchema.extend({
@@ -123,7 +130,7 @@ export const CreditProposalRequestSchema = z.object({
   propertyType: z.string().min(1, 'Tipo de imóvel é obrigatório'),
   uf: z.string().length(2, 'UF deve ter 2 caracteres'),
   cities: z.string().optional(),
-  situation: z.string().min(1, 'Situação do imóvel é obrigatória'),
+  situation: z.string().min(1, 'Situação do imóvel é obrigatória').optional(),
   financingRate: z.string().min(1, 'Taxa de financiamento é obrigatória'),
   propertyTypeResidenceInfo: z.string().optional(),
 
@@ -134,19 +141,26 @@ export const CreditProposalRequestSchema = z.object({
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA'),
   phone: z.string().min(10, 'Telefone deve ter pelo menos 10 dígitos'),
   email: z.string().email('Email inválido'),
-  motherName: z.string().min(2, 'Nome da mãe deve ter pelo menos 2 caracteres'),
-  gender: z.enum(['masculino', 'feminino']),
-  documentType: z.string().min(1, 'Tipo de documento é obrigatório'),
-  documentNumber: z.string().min(1, 'Número do documento é obrigatório'),
-  documentIssuer: z.string().min(1, 'Órgão expedidor é obrigatório'),
+  motherName: z
+    .string()
+    .min(2, 'Nome da mãe deve ter pelo menos 2 caracteres')
+    .optional(),
+  gender: z.enum(['masculino', 'feminino']).optional(),
+  documentType: z.string().min(1, 'Tipo de documento é obrigatório').optional(),
+  documentNumber: z
+    .string()
+    .min(1, 'Número do documento é obrigatório')
+    .optional(),
+  documentIssuer: z.string().min(1, 'Órgão expedidor é obrigatório').optional(),
   documentIssueDate: z
     .string()
-    .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA'),
-  ufDataUser: z.string().length(2, 'UF deve ter 2 caracteres'),
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Data deve estar no formato DD/MM/AAAA')
+    .optional(),
+  ufDataUser: z.string().length(2, 'UF deve ter 2 caracteres').optional(),
   monthlyIncome: z.string().min(1, 'Renda mensal é obrigatória'),
   profession: z.string().min(1, 'Profissão é obrigatória'),
   workType: z.string().min(1, 'Tipo de trabalho é obrigatório'),
-  professionalPosition: z.string().min(1, 'Cargo é obrigatório'),
+  professionalPosition: z.string().min(1, 'Cargo é obrigatório').optional(),
   maritalStatus: z.string().min(1, 'Estado civil é obrigatório'),
   matrimonialRegime: z.string().optional(),
   marriageDate: z.string().optional(),

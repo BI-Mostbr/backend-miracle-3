@@ -3,7 +3,7 @@ export interface CreditProposal {
   consultorId: number
   userId?: number
   partnerId?: string
-  selectedBanks: string[] // ['itau', 'santander', 'bradesco', 'cef', 'inter']
+  selectedBanks: string[]
   selectedProductOption: string
   selectedPartnerOption?: string
   propertyValue: string
