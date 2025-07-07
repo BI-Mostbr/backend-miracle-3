@@ -7,7 +7,6 @@ import { ItauApiService } from '@domain/services/itau/ItauApiService'
 import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauProposalDetails.mapper'
 import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
 import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
-import { SantanderProposalDetailsMapper } from '@domain/services/santander/mappers/SantanderProposalDetails.mapper'
 
 export interface ProposalResult {
   bankName: string
@@ -54,6 +53,8 @@ export class SendProposalUseCase {
       }
     }
 
+    this.validateRequiredFields(proposal)
+
     const validationResult = ProposalDomainService.validateAndAdjustForBank(
       proposal,
       bankName
@@ -64,7 +65,6 @@ export class SendProposalUseCase {
         `Proposta não atende às regras do ${bankName}: ${validationResult.errors.join(', ')}`
       )
     }
-
     const originalFinancedValue = proposal.financedValue
 
     const adjustedProposal = validationResult.adjustedProposal || proposal
@@ -158,7 +158,8 @@ export class SendProposalUseCase {
       }
     }
 
-    // 3. Validação e ajuste para múltiplos bancos
+    this.validateRequiredFields(proposal)
+
     const multiValidation =
       ProposalDomainService.validateAndAdjustForMultipleBanks(
         proposal,
@@ -184,6 +185,7 @@ export class SendProposalUseCase {
           multiValidation.results[bankName]?.adjustments || []
 
         const bankResponse = await bankService.sendProposal(adjustedProposal)
+
         hasSuccessfulBank = true
 
         if (!clientId) {
@@ -331,7 +333,7 @@ export class SendProposalUseCase {
           break
 
         case 'santander':
-          await this.saveSantanderProposal(proposal, bankResponse, clientId)
+          console.log(`⚠️ Santander repository não implementado ainda`)
           break
 
         default:
@@ -389,25 +391,6 @@ export class SendProposalUseCase {
     await interRepo.save(proposal, bankResponse, proposal.fluxo)
   }
 
-  private async saveSantanderProposal(
-    proposal: CreditProposal,
-    bankResponse: BankProposalResponse,
-    clientId?: bigint
-  ): Promise<void> {
-    console.log('chamando save tb_santander')
-    const sanatanderRepo = RepositoryFactory.createSantanderProposalRepository()
-    const deParaRepo = RepositoryFactory.createDeParaRepository()
-    const santanderdetails =
-      await SantanderProposalDetailsMapper.mapFromSantanderResponse(
-        bankResponse,
-        proposal,
-        deParaRepo,
-        clientId
-      )
-    console.log(santanderdetails)
-    await sanatanderRepo.save(santanderdetails, clientId)
-  }
-
   private findBankService(bankName: string): IBankProposalApiService {
     const bankService = this.bankServices.find((service) => {
       const serviceName = service.getBankName().toLowerCase().trim()
@@ -429,5 +412,36 @@ export class SendProposalUseCase {
       PORTABILIDADE: BigInt(4)
     }
     return productMap[productOption] || BigInt(1)
+  }
+
+  private validateRequiredFields(proposal: CreditProposal): void {
+    const requiredFields = [
+      { field: proposal.maritalStatus, name: 'maritalStatus' },
+      { field: proposal.propertyType, name: 'propertyType' },
+      { field: proposal.gender, name: 'gender' },
+      { field: proposal.workType, name: 'workType' },
+      { field: proposal.amortization, name: 'amortization' },
+      { field: proposal.financingRate, name: 'financingRate' }
+      // { field: proposal.documentType, name: 'documentType' },
+      // { field: proposal.documentIssuer, name: 'documentIssuer' }
+    ]
+
+    for (const { field, name } of requiredFields) {
+      if (!field || field.trim() === '') {
+        throw new Error(`Campo obrigatório '${name}' não pode estar vazio`)
+      }
+    }
+
+    if (proposal.professionalPosition === undefined) {
+      proposal.professionalPosition = ''
+    }
+
+    if (proposal.matrimonialRegime === undefined) {
+      proposal.matrimonialRegime = ''
+    }
+
+    if (!proposal.documentIssueDate) {
+      proposal.documentIssueDate = proposal.birthday
+    }
   }
 }
