@@ -58,7 +58,7 @@ const SpouseSchema = PersonSchema.extend({
   number: z.string().min(1, 'Número é obrigatório'),
   complement: z.string().optional(),
   ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
-  civilStatus: z.string().min(1, 'Estado civil é obrigatório'),
+  //civilStatus: z.string().min(1, 'Estado civil é obrigatório'),
   complemento: z.string().optional(),
   unidade: z.string().optional(),
   uf: z.string().length(2, 'UF deve ter 2 caracteres'),

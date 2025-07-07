@@ -41,8 +41,6 @@ export class ClientRepository implements IProposalClientRepository {
       const propertyValue = cleanMoney(proposal.propertyValue)
       const financedValue = cleanMoney(proposal.financedValue)
       const downPayment = propertyValue - financedValue
-
-      // Helper para tratar campos opcionais com toLocaleUpperCase
       const safeUpperCase = (value: string | undefined): string => {
         return value ? value.toLocaleUpperCase() : ''
       }
@@ -139,8 +137,8 @@ export class ClientRepository implements IProposalClientRepository {
       })
       return clientDetails
     } catch (error) {
-      console.error('❌ Erro ao salvar detalhes do cliente da proposta:', error)
-      console.error('❌ Detalhes do erro:', error)
+      console.error('Erro ao salvar detalhes do cliente da proposta:', error)
+      console.error('Detalhes do erro:', error)
       throw new Error(
         `Falha ao salvar detalhes do cliente da proposta: ${(error as Error).message}`
       )
@@ -157,7 +155,7 @@ export class ClientRepository implements IProposalClientRepository {
 
       return client
     } catch (error) {
-      console.error('❌ Erro ao buscar cliente da proposta por CPF:', error)
+      console.error('Erro ao buscar cliente da proposta por CPF:', error)
       return null
     }
   }
