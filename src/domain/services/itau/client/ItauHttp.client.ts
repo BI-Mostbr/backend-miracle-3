@@ -72,7 +72,6 @@ export class ItauHttpClient {
       const certExists = fs.existsSync(certPath)
 
       const config: any = {
-        // SEM baseURL para permitir URLs absolutas
         timeout: 30000,
         headers: {
           'Content-Type': 'application/json',
@@ -269,7 +268,7 @@ export class ItauHttpClient {
       includeCreditAnalysis: includeCreditAnalysis,
       includeInstallments: includeInstallments
     }
-
+    console.log(queryParams)
     try {
       const response = await this.axiosInstance.get(
         `/proposal-financing-partners/v1/simulations/${idSimulation}`,
