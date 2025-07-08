@@ -84,6 +84,6 @@ export const GetSimulationRequestSchema = z.object({
     .min(1, 'ID da simulação é obrigatório')
     .max(255, 'ID da simulação deve ter no máximo 255 caracteres'),
 
-  // Campo opcional específico para o Itaú
-  includeCreditAnalysis: z.boolean().optional().default(false)
+  includeCreditAnalysis: z.boolean().optional().default(false),
+  includeInstallments: z.boolean().optional().default(false)
 })

@@ -217,7 +217,8 @@ export class CreditSimulationController {
         case 'itau':
           request = {
             idSimulation: requestBody.idSimulation,
-            includeCreditAnalysis: requestBody.includeCreditAnalysis
+            includeCreditAnalysis: requestBody.includeCreditAnalysis,
+            includeInstallments: requestBody.includeInstallments
           } as GetItauSimulationRequest
           break
 

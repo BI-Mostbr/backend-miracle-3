@@ -11,7 +11,8 @@ import { ItauPayloadMapper } from './mappers/ItauPayload.mapper'
 import { ItauResponseMapper } from './mappers/itauResponse.mapper'
 import {
   GetItauSimulationRequest,
-  GetItauSimulationResponse
+  GetItauSimulationResponse,
+  GetItauSimulationWithInstallmentsResponse
 } from '@infra/dtos/GetSimulation.dto'
 import { ItauGetSimulationResponseMapper } from './mappers/ItauGetSimulationResponse.mapper'
 import {
@@ -102,17 +103,24 @@ export class ItauApiService
 
   async getSimulation(
     request: GetItauSimulationRequest
-  ): Promise<GetItauSimulationResponse> {
+  ): Promise<
+    GetItauSimulationResponse | GetItauSimulationWithInstallmentsResponse
+  > {
     try {
       const accessToken = await this.authService.getAccessToken()
       const itauRawResponse = await this.httpClient.getSimulation(
         request.idSimulation,
         accessToken,
-        request.includeCreditAnalysis,
-        request.includeInstallments
+        request.includeCreditAnalysis || false,
+        request.includeInstallments || false
       )
+
       const frontendResponse =
-        ItauGetSimulationResponseMapper.mapItauToFrontend(itauRawResponse)
+        ItauGetSimulationResponseMapper.mapItauToFrontend(
+          itauRawResponse,
+          request.includeInstallments || false
+        )
+
       return frontendResponse
     } catch (error) {
       throw new Error(
@@ -143,19 +151,22 @@ export class ItauApiService
       }
 
       const accessToken = await this.authService.getAccessToken()
+      console.log(accessToken)
       const itauPayload = ItauProposalPayloadMapper.convertToPayload(
         proposal,
         consultorData
       )
-      console.log('payload itau:', itauPayload)
+      console.log('payload itau:', JSON.stringify(itauPayload))
       const itauResponse = await this.httpClient.sendProposal(
         itauPayload,
         accessToken
       )
+      console.log('itauResponse:', JSON.stringify(itauResponse))
       const bankResponse = ItauProposalResponseMapper.convertToInternalResponse(
         itauResponse,
         proposal
       )
+      console.log('bankResponse:', JSON.stringify(bankResponse))
       return bankResponse
     } catch (error) {
       return this.handleTokenError(error, () => this.sendProposal(proposal))
