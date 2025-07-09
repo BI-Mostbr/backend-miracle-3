@@ -13,6 +13,7 @@ export interface BankProposalResponse {
     }
     inter?: {
       idProposta: string
+      proposalNumber: string
       idSimulacao: string
     }
     santander?: {

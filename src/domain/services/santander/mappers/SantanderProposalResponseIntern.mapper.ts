@@ -1,14 +1,18 @@
 import { BankProposalResponse, CreditProposal } from '@domain/entities'
+import { decryptJasypt } from 'Utils/crypto'
 
 export class SantanderProposalResponseInternMapper {
   static convertToInternalResponse(
     simulationResponse: any
   ): BankProposalResponse {
     return {
-      proposalId: simulationResponse.data.proposalId,
+      proposalId: decryptJasypt(simulationResponse.simulationId),
       bankName: 'Santander',
-      proposalNumber: simulationResponse.data.proposalNumber,
-      status: 'ENVIADO',
+      proposalNumber: decryptJasypt(simulationResponse.simulationId),
+      status:
+        simulationResponse.data.status ||
+        simulationResponse.status ||
+        'ENVIADO',
 
       bankSpecificData: {
         santander: {
