@@ -11,6 +11,7 @@ import { InterPayloadMapper } from './mappers/interPayload.mapper'
 import { InterResponseMapper } from './mappers/interResponse.mapper'
 import { InterProposalPayloadMapper } from './mappers/InterProposalPayload.mapper'
 import { InterProposalResponseMapper } from './mappers/InterProposalResponse.mapper'
+import { delay } from 'Utils/delay'
 
 export class InterApiService implements IBankApiService {
   private readonly authService: InterAuthService
@@ -68,30 +69,28 @@ export class InterApiService implements IBankApiService {
 
   async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
     try {
-      console.log('🏦 Iniciando envio de proposta para o Inter')
-      console.log('📋 CPF do cliente:', proposal.document)
-
       const accessToken = await this.authService.getAccessToken()
-      console.log('🔐 Token de acesso obtido')
-
       const interPayload = InterProposalPayloadMapper.convertToPayload(proposal)
-      console.log('📋 Payload da proposta convertido', interPayload)
 
       const interResponse = await this.httpClient.sendProposal(
         interPayload,
         accessToken
       )
+      await delay(3000)
+      const proposalDetails = await this.httpClient.getProposal(
+        interResponse.idProposta,
+        accessToken
+      )
 
-      const mappedResponse =
-        InterProposalResponseMapper.mapToInternalResponse(interResponse)
-
-      console.log('✅ Proposta Inter enviada com sucesso')
-      console.log('📄 ID da proposta:', mappedResponse.proposalId)
+      const mappedResponse = InterProposalResponseMapper.mapToInternalResponse(
+        interResponse,
+        proposalDetails.idProposta
+      )
 
       return mappedResponse
     } catch (error) {
       console.error(
-        `❌ Erro ao enviar proposta para o ${this.getBankName()}:`,
+        `Erro ao enviar proposta para o ${this.getBankName()}:`,
         error
       )
 
@@ -100,7 +99,6 @@ export class InterApiService implements IBankApiService {
         error.message.includes('Bearer token inválido')
       ) {
         try {
-          console.log('🔄 Tentando renovar token e reenviar proposta')
           const newAccessToken = await this.authService.getAccessToken()
           const interPayload =
             InterProposalPayloadMapper.convertToPayload(proposal)
@@ -124,6 +122,7 @@ export class InterApiService implements IBankApiService {
         bankSpecificData: {
           inter: {
             idProposta: '',
+            proposalNumber: '',
             idSimulacao: ''
           }
         }

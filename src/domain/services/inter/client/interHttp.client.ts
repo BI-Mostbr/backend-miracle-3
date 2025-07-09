@@ -79,6 +79,25 @@ export class InterHtppClient {
     }
   }
 
+  async getProposal(proposalId: string, accessToken: string) {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+
+    try {
+      const response = await this.axiosInstance.get(
+        `/propostas/${proposalId}`,
+        {
+          headers
+        }
+      )
+      return response.data
+    } catch (error) {
+      throw new Error(`Erro ao obter GET da proposta: ${error}`)
+    }
+  }
+
   private handleError(error: any): never {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status
