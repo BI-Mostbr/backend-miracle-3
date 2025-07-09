@@ -24,10 +24,10 @@ export class SantanderProposalDetailsMapper {
     const statusGlobal = data.status_proposta?.global
     if (statusGlobal) {
       try {
-        const ITAU_BANK_ID = 2
+        const SANTANDER_BANK_ID = 2
         const statusResult = await deParaRepository.findStatusByGlobalStatus(
           statusGlobal,
-          ITAU_BANK_ID
+          SANTANDER_BANK_ID
         )
         statusMostData = {
           id_status_most: statusResult.id_status_most,
@@ -35,7 +35,7 @@ export class SantanderProposalDetailsMapper {
         }
       } catch (error) {
         console.warn(
-          `Não foi possível mapear status '${statusGlobal}' para o Itaú:`,
+          `Não foi possível mapear status '${statusGlobal}' para o Santander:`,
           error
         )
       }

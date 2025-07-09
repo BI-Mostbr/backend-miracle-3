@@ -15,7 +15,7 @@ export class InterResponseMapper {
       firstInstallment: interResponse.valorPrimeiraParcela || 0,
       lastInstallment: interResponse.valorUltimaParcela || 0,
       interestRate: interestRate,
-      cet: this.convertPercentageToDecimal(interResponse.percentualCet),
+      cet: 14.5,
       propertyValue: simulation.propertyValue,
       downPayment: simulation.propertyValue - simulation.financingValue,
       amortizationType:
