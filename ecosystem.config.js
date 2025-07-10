@@ -7,7 +7,7 @@ module.exports = {
       script: './src/app.ts',
       cwd: '/var/www/backend-homolog',
       interpreter: 'node',
-      interpreter_args: '--loader tsx/esm',
+      interpreter_args: '--import tsx/esm', // CORRIGIDO: --import em vez de --loader
       instances: 1,
       exec_mode: 'fork',
 
