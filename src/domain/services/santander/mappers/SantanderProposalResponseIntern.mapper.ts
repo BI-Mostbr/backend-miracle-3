@@ -1,4 +1,4 @@
-import { BankProposalResponse, CreditProposal } from '@domain/entities'
+import { BankProposalResponse } from '@domain/entities'
 import { decryptJasypt } from 'Utils/crypto'
 
 export class SantanderProposalResponseInternMapper {

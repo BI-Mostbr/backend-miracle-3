@@ -2,11 +2,6 @@ import axios, { AxiosInstance } from 'axios'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import {
-  SantanderAnalyzeCreditPayload,
-  SantanderApiPayload,
-  SantanderIntegrateMiniPersonasPayload
-} from '../types/santanderApiTypes'
 import { decryptAes } from 'Utils/crypto'
 
 export class SantanderHttpClient {

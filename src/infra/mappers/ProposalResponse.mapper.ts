@@ -8,7 +8,6 @@ import { RepositoryFactory } from '@infra/factories/Repository.factory'
 import {
   ProposalApiResponse,
   ProposalOferta,
-  STATUS_MAPPING,
   BANK_LOGOS,
   BANK_IDS
 } from '@infra/dtos/ProposalResponse.dto'
