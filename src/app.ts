@@ -11,17 +11,17 @@ import { createCreditProposalRoutes } from '@infra/routes/CreditProposal.routes'
 const app = express()
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? ['https://seudominio.com', 'https://www.seudominio.com']
-        : [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:5173'
-          ],
+    origin: [
+      'https://api-miracle-hml.mostbr.com', // API homolog
+      'https://hmlmiracle.mostbr.com.br', // Frontend homolog
+      'http://localhost:3000', // Dev local
+      'http://localhost:5173', // Vite dev
+      'http://localhost:3001' // API local
+    ],
     credentials: true
   })
 )
+
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 if (process.env.NODE_ENV !== 'production') {

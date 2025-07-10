@@ -1,0 +1,175 @@
+# .github/workflows/deploy.yml
+name: 🚀 Deploy Backend Miracle - Homologação
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deploy to staging'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  # Job 1: Testes e Build
+  test-and-build:
+    name: 🧪 Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🔍 Lint Code
+        run: npm run lint
+
+      - name: 🏗️ Build Project
+        run: npm run build
+
+    # - name: 🧪 Run Tests (descomente quando tiver testes)
+    #   run: npm test
+
+  # Job 2: Deploy para Homologação (automático)
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: staging
+      url: http://api-homolog.seudominio.com
+
+    steps:
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_STAGING_SSH_KEY }}
+
+      - name: 📋 Add Staging EC2 to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚀 Deploy to Staging Server
+        run: |
+          ssh ${{ secrets.EC2_STAGING_USER }}@${{ secrets.EC2_STAGING_HOST }} << 'EOF'
+            set -e
+            
+            echo "🔄 Starting deployment to staging..."
+            echo "📅 Deploy time: $(date)"
+            
+            # Navegar para o diretório do projeto
+            cd /var/www/backend-homolog
+            
+            # Backup do .env atual
+            cp .env .env.backup || echo "No .env to backup"
+            
+            # Mostrar informações atuais
+            echo "📍 Current branch: $(git branch --show-current)"
+            echo "📍 Current commit: $(git rev-parse --short HEAD)"
+            
+            # Pull das últimas alterações
+            git fetch origin
+            git reset --hard origin/main
+            git clean -fd
+            
+            # Mostrar novas informações
+            echo "📍 New commit: $(git rev-parse --short HEAD)"
+            echo "📍 Commit message: $(git log -1 --pretty=%B)"
+            
+            # Restaurar .env
+            cp .env.backup .env || echo "No .env backup to restore"
+            
+            # Instalar dependências
+            echo "📦 Installing dependencies..."
+            npm ci --production=false
+            
+            # Build do projeto
+            echo "🏗️ Building project..."
+            npm run build
+            
+            # Criar diretório de logs se não existir
+            mkdir -p logs
+            
+            # Restart da aplicação com PM2
+            echo "🔄 Restarting application..."
+            pm2 reload ecosystem.config.js --only backend-miracle-homolog || pm2 start ecosystem.config.js --only backend-miracle-homolog
+            
+            # Aguardar a aplicação subir
+            echo "⏳ Waiting for application to start..."
+            sleep 10
+            
+            # Health check
+            echo "🔍 Performing health check..."
+            if curl -f http://localhost:3001/health; then
+              echo "✅ Staging deployment successful!"
+              echo "🌐 Application available at: http://api-homolog.seudominio.com"
+            else
+              echo "❌ Health check failed!"
+              echo "📋 Recent logs:"
+              pm2 logs backend-miracle-homolog --lines 20
+              exit 1
+            fi
+            
+            # Mostrar status final
+            echo "📊 Final status:"
+            pm2 status
+          EOF
+
+      - name: 📧 Notify Staging Success
+        if: success()
+        run: |
+          echo "✅ Staging deployment completed successfully!"
+          echo "🌐 Application available at: http://api-homolog.seudominio.com"
+          echo "📋 Next steps:"
+          echo "   - Test the application"
+          echo "   - Check logs if needed"
+          echo "   - When ready, create production server"
+
+      - name: 📧 Notify Staging Failure
+        if: failure()
+        run: |
+          echo "❌ Staging deployment failed!"
+          echo "🔍 Check the logs above for details"
+          echo "💡 Common issues:"
+          echo "   - SSH connection problems"
+          echo "   - Build failures"
+          echo "   - Health check timeout"
+          echo "   - PM2 restart issues"
+
+  # Job 3: Placeholder para produção (para o futuro)
+  deploy-production-info:
+    name: 📋 Production Deploy Info
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📋 Production Deploy Instructions
+        run: |
+          echo "🚧 Production deployment not configured yet"
+          echo "📋 To enable production deployment:"
+          echo "   1. Create production EC2 instance"
+          echo "   2. Configure production secrets:"
+          echo "      - EC2_PRODUCTION_SSH_KEY"
+          echo "      - EC2_PRODUCTION_HOST"
+          echo "      - EC2_PRODUCTION_USER"
+          echo "   3. Update workflow to include production job"
+          echo "   4. Set up production environment protection"
