@@ -1,26 +1,23 @@
-// ecosystem.config.js
 module.exports = {
   apps: [
     {
       // Configuração para HOMOLOGAÇÃO
       name: 'backend-miracle-homolog',
-      script: './src/app.ts',
+      script: './dist/app.js', // USAR DIST/ - JavaScript compilado
       cwd: '/var/www/backend-homolog',
-      interpreter: 'node',
-      interpreter_args: '--import tsx/esm', // CORRIGIDO: --import em vez de --loader
       instances: 1,
       exec_mode: 'fork',
 
       // Variáveis de ambiente
       env: {
         NODE_ENV: 'staging',
-        PORT: 3000,
+        PORT: 3000, // PORTA 3000
         NODE_OPTIONS: '--openssl-legacy-provider'
       },
 
       // Configurações de restart
       watch: false,
-      ignore_watch: ['node_modules', 'logs', '*.log', '.git'],
+      ignore_watch: ['node_modules', 'logs', '*.log', '.git', 'src', 'dist'],
 
       // Logs
       log_file: '/var/www/backend-homolog/logs/combined.log',
