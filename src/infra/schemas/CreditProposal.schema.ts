@@ -93,7 +93,7 @@ const SecondProponentSchema = PersonSchema.extend({
     localidade: z.string().min(1, 'Cidade é obrigatória'),
     number: z.string().min(1, 'Número é obrigatório'),
     complement: z.string().optional(),
-    ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
+    ufResidence: z.string().length(2, 'UF deve ter 2 caracteres'),
     includesIncome: z.boolean()
   }).optional()
 }).optional()
