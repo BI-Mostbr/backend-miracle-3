@@ -92,6 +92,7 @@ export class InterHtppClient {
           headers
         }
       )
+      console.log(JSON.stringify(response.data))
       return response.data
     } catch (error) {
       throw new Error(`Erro ao obter GET da proposta: ${error}`)
