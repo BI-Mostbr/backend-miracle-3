@@ -48,7 +48,7 @@ const PersonSchema = z.object({
 })
 
 const SpouseSchema = PersonSchema.extend({
-  spouseUfDataUser: z.string().length(2, 'UF deve ter 2 caracteres'),
+  spouseUfDataUser: z.string().length(2, 'UF deve ter 2 caracteres').optional(),
   spouseContributesIncome: z.boolean(),
   propertyType: z.string().min(1, 'Tipo de propriedade é obrigatório'),
   cep: z.string().min(8, 'CEP deve ter 8 dígitos'),
@@ -80,7 +80,7 @@ const SecondProponentSchema = PersonSchema.extend({
   localidade: z.string().min(1, 'Cidade é obrigatória'),
   number: z.string().min(1, 'Número é obrigatório'),
   complement: z.string().optional(),
-  ufRedisence: z.string().length(2, 'UF deve ter 2 caracteres'),
+  ufResidence: z.string().length(2, 'UF deve ter 2 caracteres'),
   civilStatus: z.string().min(1, 'Estado civil é obrigatório'),
 
   spouseSecondProponent: PersonSchema.extend({

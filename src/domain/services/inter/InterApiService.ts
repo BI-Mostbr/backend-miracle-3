@@ -81,6 +81,7 @@ export class InterApiService implements IBankApiService {
         interResponse.idProposta,
         accessToken
       )
+      console.log(proposalDetails.idProposta)
 
       const mappedResponse = InterProposalResponseMapper.mapToInternalResponse(
         interResponse,

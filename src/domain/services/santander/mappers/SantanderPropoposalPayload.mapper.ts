@@ -90,7 +90,7 @@ export class SantanderProposalPayloadMapper {
                 phoneRegexSantander(secondBuyer.phone).ddd +
                 phoneRegexSantander(secondBuyer.phone).numero,
               buyerEmail: secondBuyer.email,
-              buyerIncome: secondBuyer.monthlyIncome,
+              buyerIncome: cleanMoney(secondBuyer.monthlyIncome),
               buyerBirthDate: convertDateBrToIso(secondBuyer.birthday)
             }
           })
