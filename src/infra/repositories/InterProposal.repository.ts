@@ -24,7 +24,7 @@ export class InterProposalRepository implements IInterProposalRepository {
       const interData = await this.prisma.tb_inter.create({
         data: {
           cpf: CreditProposalMapper.getCleanCpf(proposal) || '',
-          id_proposta: bankResponse.proposalId || '',
+          id_proposta: bankResponse.bankSpecificData?.inter?.idProposta || '',
           id_simulacao: bankResponse.simulationId || '',
           valorFinanciamento: valorFinanciamento,
           prazoEmprestimo: BigInt(
