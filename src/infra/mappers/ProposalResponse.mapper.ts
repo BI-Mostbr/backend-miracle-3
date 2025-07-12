@@ -76,12 +76,21 @@ export class ProposalResponseMapper {
 
     const observacao = this.buildObservacao(bankResult)
 
-    const proposalId = bankResult.success
-      ? bankResult.proposalNumber ||
-        bankResult.proposalId ||
-        BANK_IDS[bankNameLower] ||
-        (index + 1).toString()
-      : BANK_IDS[bankNameLower] || (index + 1).toString()
+    let proposalId: string
+
+    if (bankResult.success) {
+      if (bankNameLower === 'inter') {
+        proposalId = bankResult.proposalNumber || 'Não informado'
+      } else {
+        proposalId =
+          bankResult.proposalNumber ||
+          bankResult.proposalId ||
+          BANK_IDS[bankNameLower] ||
+          (index + 1).toString()
+      }
+    } else {
+      proposalId = BANK_IDS[bankNameLower] || (index + 1).toString()
+    }
 
     return {
       url: BANK_LOGOS[bankNameLower] || BANK_LOGOS['bradesco'],
