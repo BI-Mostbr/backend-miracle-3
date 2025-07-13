@@ -133,16 +133,28 @@ export class InterProposalRepository implements IInterProposalRepository {
     valorFinanciamento: number,
     valorImovel: number
   ): number {
+    if (valorFinanciamento < 0 || valorImovel < 0) {
+      throw new Error('Valores não podem ser negativos')
+    }
+
     if (!valorImovel || valorImovel === 0) {
-      console.warn('⚠️ Valor do imóvel é 0, LTV será 0')
+      console.warn('Valor do imóvel é 0, LTV será 0')
+      return 0
+    }
+
+    if (valorFinanciamento === 0) {
       return 0
     }
 
     const ltv = (valorFinanciamento / valorImovel) * 100
-    console.log(
-      `📊 LTV calculado: ${valorFinanciamento} / ${valorImovel} = ${ltv.toFixed(2)}%`
-    )
+    const ltvFinal = ltv > 80 ? 75 : ltv
 
-    return Math.round(ltv * 100) / 100
+    if (ltv > 80) {
+      console.log(`LTV ajustado: ${ltv.toFixed(2)}% → 75% (limite aplicado)`)
+    } else {
+      console.log(`LTV calculado: ${ltvFinal.toFixed(2)}%`)
+    }
+
+    return Number(ltvFinal.toFixed(2))
   }
 }
