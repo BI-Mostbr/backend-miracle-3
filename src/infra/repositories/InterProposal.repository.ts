@@ -20,6 +20,7 @@ export class InterProposalRepository implements IInterProposalRepository {
       const valorImovel =
         CreditProposalMapper.getPropertyValueAsNumber(proposal)
       const ltv = this.calculateLTV(valorFinanciamento, valorImovel)
+      const valorEntrada = valorImovel - valorFinanciamento
 
       const interData = await this.prisma.tb_inter.create({
         data: {
@@ -37,18 +38,18 @@ export class InterProposalRepository implements IInterProposalRepository {
           id_status_most: BigInt(1),
           id_situacao_most: BigInt(4),
           id_cliente_most: clientId,
-          taxaIof: undefined,
+          taxaIof: 0,
           taxa: undefined,
           taxaJuros: undefined,
-          cet: undefined,
-          cesh: undefined,
-          valorEntrada: undefined,
-          valorImovel: undefined,
-          valorLiberado: undefined,
-          tarifaAvaliacao: undefined,
-          valorPrimeiraParcela: undefined,
-          valorUltimaParcela: undefined,
-          totalDevido: undefined,
+          cet: 0,
+          cesh: 0,
+          valorEntrada: valorEntrada,
+          valorImovel: valorImovel,
+          valorLiberado: 0,
+          tarifaAvaliacao: 0,
+          valorPrimeiraParcela: 0,
+          valorUltimaParcela: 0,
+          totalDevido: 0,
           produtoAprovado: undefined,
           tipoProduto: undefined,
           etapaTarefaPreAnalise: undefined,
@@ -57,9 +58,9 @@ export class InterProposalRepository implements IInterProposalRepository {
           modeloOperacional: undefined,
           sistemaAmortizacao: undefined,
           indexador: undefined,
-          despesas: undefined,
+          despesas: 0,
           dataProposta: undefined,
-          rendaSugerida: undefined,
+          rendaSugerida: 0,
           estadoImovel: undefined,
           tipoImovel: undefined,
           id_substatus_most: undefined,
