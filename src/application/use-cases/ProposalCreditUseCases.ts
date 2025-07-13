@@ -8,6 +8,7 @@ import { ItauProposalDetailsMapper } from '@domain/services/itau/mappers/ItauPro
 import { ItauProposalDetails } from '@infra/interfaces/ItauProposalDetails.interface'
 import { ProposalDomainService } from '@domain/services/ProposalDomain.service'
 import { SantanderProposalDetailsMapper } from '@domain/services/santander/mappers/SantanderProposalDetails.mapper'
+import { decryptJasypt } from 'Utils/crypto'
 
 export interface ProposalResult {
   bankName: string
@@ -98,10 +99,27 @@ export class SendProposalUseCase {
         )
       }
 
+      let proposalId = bankResponse.proposalId
+      if (bankName.toLowerCase() === 'santander' && bankResponse.simulationId) {
+        try {
+          proposalId = decryptJasypt(bankResponse.simulationId)
+          console.log(
+            '🔍 SimulationId descriptografado para frontend:',
+            proposalId
+          )
+        } catch (error) {
+          console.warn(
+            'Erro ao descriptografar simulationId do Santander:',
+            error
+          )
+          proposalId = bankResponse.proposalId
+        }
+      }
+
       results.push({
         bankName,
         success: true,
-        proposalId: bankResponse.proposalId,
+        proposalId: proposalId, // USAR O ID DESCRIPTOGRAFADO PARA SANTANDER
         proposalNumber: bankResponse.proposalNumber,
         adjustments: validationResult.adjustments || [],
         originalFinancedValue: originalFinancedValue,
@@ -215,10 +233,30 @@ export class SendProposalUseCase {
 
         totalAdjustments += bankAdjustments.length
 
+        let proposalId = bankResponse.proposalId
+        if (
+          bankName.toLowerCase() === 'santander' &&
+          bankResponse.simulationId
+        ) {
+          try {
+            proposalId = decryptJasypt(bankResponse.simulationId)
+            console.log(
+              '🔍 SimulationId descriptografado para frontend:',
+              proposalId
+            )
+          } catch (error) {
+            console.warn(
+              'Erro ao descriptografar simulationId do Santander:',
+              error
+            )
+            proposalId = bankResponse.proposalId
+          }
+        }
+
         results.push({
           bankName,
           success: true,
-          proposalId: bankResponse.proposalId,
+          proposalId: proposalId,
           proposalNumber: bankResponse.proposalNumber,
           adjustments: bankAdjustments,
           originalFinancedValue: proposal.financedValue,
