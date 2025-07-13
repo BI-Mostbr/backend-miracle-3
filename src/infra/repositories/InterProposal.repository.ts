@@ -9,7 +9,7 @@ export class InterProposalRepository implements IInterProposalRepository {
   async save(
     proposal: CreditProposal,
     bankResponse: BankProposalResponse,
-    flowType: string
+    clientId?: bigint
   ): Promise<IInterProposalData> {
     try {
       console.log('💾 Salvando proposta Inter na tb_inter...')
@@ -36,7 +36,7 @@ export class InterProposalRepository implements IInterProposalRepository {
           numero_proposta: bankResponse.proposalNumber || '',
           id_status_most: BigInt(1),
           id_situacao_most: BigInt(4),
-          id_cliente_most: undefined,
+          id_cliente_most: clientId,
           taxaIof: undefined,
           taxa: undefined,
           taxaJuros: undefined,
@@ -75,7 +75,7 @@ export class InterProposalRepository implements IInterProposalRepository {
         id: interData.id,
         created_at: interData.created_at,
         cpf: interData.cpf ?? undefined,
-        id_cliente_most: interData.id_cliente_most ?? undefined,
+        id_cliente_most: clientId,
         id_proposta: interData.id_proposta ?? undefined,
         id_simulacao: interData.id_simulacao ?? undefined,
         taxaIof: interData.taxaIof ?? undefined,
