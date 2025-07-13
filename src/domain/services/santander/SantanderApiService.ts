@@ -179,10 +179,6 @@ export class SantanderApiService implements IBankApiService {
     console.log(saveSimulationResponse)
     console.log(decryptAes(saveSimulationResponse.enc))
 
-    // const saveSimulationDecript = JSON.parse(
-    //   decryptAes(saveSimulationResponse.enc)
-    // )
-
     const analyzeCreditPayload =
       SantanderAnalyzeCreditPayloadMapper.convertToPayload(
         santanderResponseDrcript.simulationId
@@ -238,8 +234,90 @@ export class SantanderApiService implements IBankApiService {
         'Analyze Credit Integrate Mini Personas 301: ',
         JSON.stringify(analyzeCreditDecript)
       )
-      return analyzeCreditDecript
+
+      // PRESERVAR O SIMULATION ID ORIGINAL
+      const originalSimulationId = santanderResponseDrcript.simulationId
+      console.log(
+        '🔍 Original simulationId para frontend (301):',
+        originalSimulationId
+      )
+
+      const bankResponse301: BankProposalResponse = {
+        proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
+        bankName: 'Santander',
+        simulationId: originalSimulationId,
+        status: 'ENVIADO',
+        bankSpecificData: {
+          santander: {
+            simulationId: originalSimulationId,
+            financingObjective: santanderResponseDrcript.financingObjective,
+            financingObjectiveKey:
+              santanderResponseDrcript.financingObjectiveKey,
+            propertyValue: santanderResponseDrcript.propertyValue,
+            fgtsAmount: santanderResponseDrcript.fgtsAmount,
+            financingValue: santanderResponseDrcript.financingValue,
+            financingDeadlineInYears:
+              santanderResponseDrcript.financingDeadlineInYears,
+            financingDeadlineInMonths:
+              santanderResponseDrcript.financingDeadlineInMonths,
+            minimumFinancingDeadlineInMonths:
+              santanderResponseDrcript.minimumFinancingDeadlineInMonths,
+            maximumFinancingDeadlineInMonths:
+              santanderResponseDrcript.maximumFinancingDeadlineInMonths,
+            minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
+            maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
+            downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
+            expensesFinancedValue:
+              santanderResponseDrcript.expensesFinancedValue,
+            iofValue: santanderResponseDrcript.iofValue,
+            valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
+            totalFinancingValueWithExpenses:
+              santanderResponseDrcript.totalFinancingValueWithExpenses,
+            trIndexer: santanderResponseDrcript.trIndexer,
+            customerPortfolioName:
+              santanderResponseDrcript.customerPortfolioName,
+            campaign: santanderResponseDrcript.campaign,
+            campaignKey: santanderResponseDrcript.campaignKey,
+            segment: santanderResponseDrcript.segment,
+            segmentKey: santanderResponseDrcript.segmentKey,
+            relationShipOffer: santanderResponseDrcript.relationShipOffer,
+            relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
+            insurer: santanderResponseDrcript.insurer,
+            insurerKey: santanderResponseDrcript.insurerKey,
+            amortizationType: santanderResponseDrcript.amortizationType,
+            amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
+            paymentType: santanderResponseDrcript.paymentType,
+            paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
+            allowsToFinanceWarrantyEvaluationFee:
+              santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
+            allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
+            allowsToFinancePropertyRegistrationAndITBI:
+              santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
+            allowsFGTS: santanderResponseDrcript.allowsFGTS,
+            relationShipFlow: santanderResponseDrcript.relationShipFlow,
+            unrelatedFlow: {
+              calculatedSimulationType:
+                santanderResponseDrcript.unrelatedFlow
+                  ?.calculatedSimulationType || '',
+              annualInterestRate:
+                santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
+              monthlyInterestRate:
+                santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate ||
+                0,
+              firstPaymentAmount:
+                santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
+              lastPaymentAmount:
+                santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
+              cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
+              ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
+            }
+          }
+        }
+      }
+
+      return bankResponse301
     }
+
     if (analyzeCreditDecript.data.analyzeCredit.returnCode === '302') {
       let proponenteParaPayload: CreditProposal | undefined = undefined
 
@@ -356,14 +434,173 @@ export class SantanderApiService implements IBankApiService {
         'Analyze Credit Integrate Mini Personas 302: ',
         JSON.stringify(analyzeCreditDecript)
       )
-      return analyzeCreditDecript
+
+      // PRESERVAR O SIMULATION ID ORIGINAL
+      const originalSimulationId = santanderResponseDrcript.simulationId
+      console.log(
+        '🔍 Original simulationId para frontend (302):',
+        originalSimulationId
+      )
+
+      const bankResponse302: BankProposalResponse = {
+        proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
+        bankName: 'Santander',
+        simulationId: originalSimulationId,
+        status: 'ENVIADO',
+        bankSpecificData: {
+          santander: {
+            simulationId: originalSimulationId,
+            financingObjective: santanderResponseDrcript.financingObjective,
+            financingObjectiveKey:
+              santanderResponseDrcript.financingObjectiveKey,
+            propertyValue: santanderResponseDrcript.propertyValue,
+            fgtsAmount: santanderResponseDrcript.fgtsAmount,
+            financingValue: santanderResponseDrcript.financingValue,
+            financingDeadlineInYears:
+              santanderResponseDrcript.financingDeadlineInYears,
+            financingDeadlineInMonths:
+              santanderResponseDrcript.financingDeadlineInMonths,
+            minimumFinancingDeadlineInMonths:
+              santanderResponseDrcript.minimumFinancingDeadlineInMonths,
+            maximumFinancingDeadlineInMonths:
+              santanderResponseDrcript.maximumFinancingDeadlineInMonths,
+            minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
+            maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
+            downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
+            expensesFinancedValue:
+              santanderResponseDrcript.expensesFinancedValue,
+            iofValue: santanderResponseDrcript.iofValue,
+            valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
+            totalFinancingValueWithExpenses:
+              santanderResponseDrcript.totalFinancingValueWithExpenses,
+            trIndexer: santanderResponseDrcript.trIndexer,
+            customerPortfolioName:
+              santanderResponseDrcript.customerPortfolioName,
+            campaign: santanderResponseDrcript.campaign,
+            campaignKey: santanderResponseDrcript.campaignKey,
+            segment: santanderResponseDrcript.segment,
+            segmentKey: santanderResponseDrcript.segmentKey,
+            relationShipOffer: santanderResponseDrcript.relationShipOffer,
+            relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
+            insurer: santanderResponseDrcript.insurer,
+            insurerKey: santanderResponseDrcript.insurerKey,
+            amortizationType: santanderResponseDrcript.amortizationType,
+            amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
+            paymentType: santanderResponseDrcript.paymentType,
+            paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
+            allowsToFinanceWarrantyEvaluationFee:
+              santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
+            allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
+            allowsToFinancePropertyRegistrationAndITBI:
+              santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
+            allowsFGTS: santanderResponseDrcript.allowsFGTS,
+            relationShipFlow: santanderResponseDrcript.relationShipFlow,
+            unrelatedFlow: {
+              calculatedSimulationType:
+                santanderResponseDrcript.unrelatedFlow
+                  ?.calculatedSimulationType || '',
+              annualInterestRate:
+                santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
+              monthlyInterestRate:
+                santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate ||
+                0,
+              firstPaymentAmount:
+                santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
+              lastPaymentAmount:
+                santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
+              cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
+              ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
+            }
+          }
+        }
+      }
+
+      return bankResponse302
     }
 
     console.log(analyzeCreditDecript)
+
+    // PRESERVAR O SIMULATION ID ORIGINAL
+    const originalSimulationId = santanderResponseDrcript.simulationId
+    console.log(
+      '🔍 Original simulationId para frontend (default):',
+      originalSimulationId
+    )
+
     const bankResponse =
       SantanderProposalResponseInternMapper.convertToInternalResponse(
         santanderResponseDrcript
       )
+
+    // ADICIONAR O SIMULATION ID ORIGINAL NO RESPONSE
+    bankResponse.simulationId = originalSimulationId
+
+    // PRESERVAR OS DADOS DA SIMULAÇÃO ORIGINAL
+    if (!bankResponse.bankSpecificData) {
+      bankResponse.bankSpecificData = {}
+    }
+
+    // Sobrescrever completamente os dados do Santander com os dados da simulação original
+    bankResponse.bankSpecificData.santander = {
+      simulationId: originalSimulationId,
+      financingObjective: santanderResponseDrcript.financingObjective,
+      financingObjectiveKey: santanderResponseDrcript.financingObjectiveKey,
+      propertyValue: santanderResponseDrcript.propertyValue,
+      fgtsAmount: santanderResponseDrcript.fgtsAmount,
+      financingValue: santanderResponseDrcript.financingValue,
+      financingDeadlineInYears:
+        santanderResponseDrcript.financingDeadlineInYears,
+      financingDeadlineInMonths:
+        santanderResponseDrcript.financingDeadlineInMonths,
+      minimumFinancingDeadlineInMonths:
+        santanderResponseDrcript.minimumFinancingDeadlineInMonths,
+      maximumFinancingDeadlineInMonths:
+        santanderResponseDrcript.maximumFinancingDeadlineInMonths,
+      minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
+      maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
+      downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
+      expensesFinancedValue: santanderResponseDrcript.expensesFinancedValue,
+      iofValue: santanderResponseDrcript.iofValue,
+      valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
+      totalFinancingValueWithExpenses:
+        santanderResponseDrcript.totalFinancingValueWithExpenses,
+      trIndexer: santanderResponseDrcript.trIndexer,
+      customerPortfolioName: santanderResponseDrcript.customerPortfolioName,
+      campaign: santanderResponseDrcript.campaign,
+      campaignKey: santanderResponseDrcript.campaignKey,
+      segment: santanderResponseDrcript.segment,
+      segmentKey: santanderResponseDrcript.segmentKey,
+      relationShipOffer: santanderResponseDrcript.relationShipOffer,
+      relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
+      insurer: santanderResponseDrcript.insurer,
+      insurerKey: santanderResponseDrcript.insurerKey,
+      amortizationType: santanderResponseDrcript.amortizationType,
+      amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
+      paymentType: santanderResponseDrcript.paymentType,
+      paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
+      allowsToFinanceWarrantyEvaluationFee:
+        santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
+      allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
+      allowsToFinancePropertyRegistrationAndITBI:
+        santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
+      allowsFGTS: santanderResponseDrcript.allowsFGTS,
+      relationShipFlow: santanderResponseDrcript.relationShipFlow,
+      unrelatedFlow: {
+        calculatedSimulationType:
+          santanderResponseDrcript.unrelatedFlow?.calculatedSimulationType ||
+          '',
+        annualInterestRate:
+          santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
+        monthlyInterestRate:
+          santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate || 0,
+        firstPaymentAmount:
+          santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
+        lastPaymentAmount:
+          santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
+        cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
+        ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
+      }
+    }
 
     return bankResponse
   }
