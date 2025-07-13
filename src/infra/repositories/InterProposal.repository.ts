@@ -64,7 +64,7 @@ export class InterProposalRepository implements IInterProposalRepository {
           tipoImovel: undefined,
           id_substatus_most: undefined,
           situacao: undefined,
-          taxa_de_juros_float: undefined,
+          taxa_de_juros_float: 0,
           id_cliente_incorporador: undefined,
           id_produto: undefined,
           created_at: new Date()
