@@ -147,7 +147,7 @@ export class InterProposalRepository implements IInterProposalRepository {
     }
 
     const ltv = (valorFinanciamento / valorImovel) * 100
-    const ltvFinal = ltv > 80 ? 75 : ltv
+    const ltvFinal = ltv > 75 ? 75 : ltv
 
     if (ltv > 80) {
       console.log(`LTV ajustado: ${ltv.toFixed(2)}% → 75% (limite aplicado)`)
