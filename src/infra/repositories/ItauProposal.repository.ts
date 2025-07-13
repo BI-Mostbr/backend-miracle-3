@@ -50,9 +50,6 @@ export class ItauProposalRepository implements IItauProposalRepository {
         }
       })
 
-      console.log(
-        `💾 Proposta Itaú salva com dados completos - ID: ${itauData.id_most}`
-      )
       return itauData
     } catch (error) {
       console.error('❌ Erro ao salvar proposta Itaú com detalhes:', error)

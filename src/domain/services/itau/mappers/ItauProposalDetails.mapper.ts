@@ -13,7 +13,7 @@ export class ItauProposalDetailsMapper {
     const data = itauResponse.data
     const financingValue = cleanMoney(proposal.financedValue)
     const propertyValue = cleanMoney(proposal.propertyValue)
-    const ltv = (financingValue / propertyValue) * 100
+    const ltv = Number(((financingValue / propertyValue) * 100).toFixed(2))
 
     let statusMostData = {
       id_status_most: null as bigint | null,
@@ -79,9 +79,7 @@ export class ItauProposalDetailsMapper {
         data.agencia_indicacao?.funcional_gerente || null,
       id_cliente_most: clientMostId || null,
       ltv: ltv.toString(),
-      prazo: data.valores?.prazo_solicitado
-        ? BigInt(data.valores.prazo_solicitado)
-        : null,
+      prazo: proposal.term ? BigInt(proposal.term) : null,
       cet: null,
       valor_solicitado: data.valores?.credito_solicitado || null,
       id_status_most: statusMostData.id_status_most || null,

@@ -7,9 +7,14 @@ import {
 import { PrismaClient } from '@prisma/client'
 import { convertDateBrToIso } from 'Utils/convertData'
 import { cleanCpf, cleanMoney } from 'Utils/removeMasks'
+import { UserRepository } from './User.repository'
 
 export class ClientRepository implements IProposalClientRepository {
-  constructor(private prisma: PrismaClient) {}
+  private userRepository: UserRepository
+
+  constructor(private prisma: PrismaClient) {
+    this.userRepository = new UserRepository(prisma)
+  }
 
   async save(proposal: CreditProposal): Promise<IProposalClientData> {
     try {
@@ -43,6 +48,21 @@ export class ClientRepository implements IProposalClientRepository {
       const downPayment = propertyValue - financedValue
       const safeUpperCase = (value: string | undefined): string => {
         return value ? value.toLocaleUpperCase() : ''
+      }
+
+      let idLider = null
+      if (proposal.consultorId) {
+        try {
+          const user = await this.userRepository.findUserById(
+            proposal.consultorId
+          )
+          idLider = user?.id_lider || null
+        } catch (error) {
+          console.warn(
+            `Não foi possível buscar id_lider para consultorId ${proposal.consultorId}:`,
+            error
+          )
+        }
       }
 
       const clientDetails = await this.prisma.clientes_detalhes.create({
@@ -116,11 +136,11 @@ export class ClientRepository implements IProposalClientRepository {
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
             : null,
-          id_lider: null,
+          id_lider: idLider ? Number(idLider) : undefined,
           parceiro: proposal.selectedPartnerOption || null,
           valor_imovel: propertyValue,
           credito_aprovado: null,
-          taxa_juros: null,
+          taxa_juros: 0,
           vlr_solicitado: financedValue,
           vlr_fgts: proposal.fgtsValue ? cleanMoney(proposal.fgtsValue) : 0,
           id_profissao: null,
