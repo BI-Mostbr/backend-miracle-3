@@ -330,7 +330,7 @@ export class SendProposalUseCase {
           break
 
         case 'inter':
-          await this.saveInterProposal(proposal, bankResponse)
+          await this.saveInterProposal(proposal, bankResponse, clientId)
           break
 
         case 'santander':
@@ -386,10 +386,11 @@ export class SendProposalUseCase {
 
   private async saveInterProposal(
     proposal: CreditProposal,
-    bankResponse: BankProposalResponse
+    bankResponse: BankProposalResponse,
+    clientId?: bigint
   ): Promise<void> {
     const interRepo = RepositoryFactory.createInterProposalRepository()
-    await interRepo.save(proposal, bankResponse, proposal.fluxo)
+    await interRepo.save(proposal, bankResponse, clientId)
   }
 
   private async saveSantanderProposal(

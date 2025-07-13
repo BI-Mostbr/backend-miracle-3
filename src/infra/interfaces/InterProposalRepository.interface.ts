@@ -51,6 +51,6 @@ export interface IInterProposalRepository {
   save(
     proposal: CreditProposal,
     bankResponse: BankProposalResponse,
-    flowType: string
+    clientId?: BigInt
   ): Promise<IInterProposalData>
 }
