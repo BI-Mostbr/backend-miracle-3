@@ -26,7 +26,8 @@ export class ClientRepository implements IProposalClientRepository {
           id_consultor: proposal.consultorId
             ? BigInt(proposal.consultorId)
             : null,
-          parceiro: proposal.selectedPartnerOption || null,
+          parceiro: null,
+          id_parceiro: Number(proposal.selectedPartnerOption) || null,
           created_at: new Date()
         }
       })
