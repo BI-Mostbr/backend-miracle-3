@@ -14,6 +14,7 @@ export class UserRepository {
         select: {
           nome: true,
           email: true,
+          id_lider: true,
           cpf: true,
           nome_itau: true,
           id_santander: true
