@@ -337,6 +337,27 @@ export class ClientRepository implements IProposalClientRepository {
     }
   }
 
+  async updateClientName(cpf: string, clientName: string): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.clientes_detalhes.updateMany({
+        where: { cpf_cliente: cpf },
+        data: {
+          nome: clientName
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar nome do cliente:', error)
+      throw new Error(
+        `Falha ao atualizar nome do cliente: ${(error as Error).message}`
+      )
+    }
+  }
+
   private getProductId(productOption: string): number {
     const productMap: { [key: string]: number } = {
       ISOLADO: 1,
