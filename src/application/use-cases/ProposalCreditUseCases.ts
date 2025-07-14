@@ -376,9 +376,7 @@ export class SendProposalUseCase {
           break
 
         default:
-          console.warn(
-            `⚠️ Repositório não implementado para o banco: ${bankName}`
-          )
+          console.warn(`Repositório não implementado para o banco: ${bankName}`)
           break
       }
     } catch (error) {
@@ -436,7 +434,6 @@ export class SendProposalUseCase {
     bankResponse: BankProposalResponse,
     clientId?: bigint
   ): Promise<void> {
-    console.log('chamando save tb_santander')
     const sanatanderRepo = RepositoryFactory.createSantanderProposalRepository()
     const deParaRepo = RepositoryFactory.createDeParaRepository()
     const santanderdetails =

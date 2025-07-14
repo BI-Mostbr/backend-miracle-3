@@ -114,6 +114,7 @@ export class ItauApiService
         request.includeCreditAnalysis || false,
         request.includeInstallments || false
       )
+      console.log(itauRawResponse)
 
       const frontendResponse =
         ItauGetSimulationResponseMapper.mapItauToFrontend(

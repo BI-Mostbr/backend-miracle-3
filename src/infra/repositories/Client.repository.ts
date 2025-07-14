@@ -247,6 +247,96 @@ export class ClientRepository implements IProposalClientRepository {
     }
   }
 
+  async updateDecisionBank(
+    cpf: string,
+    idProposta: string,
+    idBanco: number
+  ): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.tb_clientes.update({
+        where: { cpf: cpf },
+        data: {
+          id_banco_decisao: idProposta,
+          id_bancofornecedor_decisao: idBanco,
+          data_banco_decisao: new Date().toISOString()
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao escolher o banco decisão:', error)
+      throw error
+    }
+  }
+
+  async removeDecisionBank(cpf: string): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.tb_clientes.update({
+        where: { cpf: cpf },
+        data: {
+          id_banco_decisao: null,
+          id_bancofornecedor_decisao: null,
+          data_banco_decisao: null
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao remover decisão do banco:', error)
+      throw error
+    }
+  }
+
+  async updateResponsibleUser(cpf: string, idConsultor: number): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.tb_clientes.update({
+        where: { cpf: cpf },
+        data: {
+          id_consultor: BigInt(idConsultor),
+          dt_ult_atualizacao: new Date().toISOString()
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar consultor responsável:', error)
+      throw new Error(
+        `Falha ao atualizar consultor responsável: ${(error as Error).message}`
+      )
+    }
+  }
+
+  async updatePartner(cpf: string, idPartner: number): Promise<void> {
+    try {
+      const client = await this.findByCpf(cpf)
+      if (!client) {
+        throw new Error(`Cliente com CPF ${cpf} não encontrado`)
+      }
+
+      await this.prisma.tb_clientes.update({
+        where: { cpf: cpf },
+        data: {
+          id_parceiro: idPartner,
+          dt_ult_atualizacao: new Date().toISOString()
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar parceiro:', error)
+      throw new Error(
+        `Falha ao atualizar parceiro: ${(error as Error).message}`
+      )
+    }
+  }
+
   private getProductId(productOption: string): number {
     const productMap: { [key: string]: number } = {
       ISOLADO: 1,
