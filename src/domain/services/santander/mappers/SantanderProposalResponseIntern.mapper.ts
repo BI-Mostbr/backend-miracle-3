@@ -7,13 +7,14 @@ export class SantanderProposalResponseInternMapper {
     simulationResponse: any,
     analyzeCredit: any
   ): BankProposalResponse {
-    const situationMost = mapToStatusSantander(analyzeCredit.data.analyzeCredit.returnCode)
+    const situationMost = mapToStatusSantander(
+      analyzeCredit.data.analyzeCredit.statusCode
+    )
     return {
       proposalId: decryptJasypt(simulationResponse.simulationId),
       bankName: 'Santander',
       proposalNumber: decryptJasypt(simulationResponse.simulationId),
-      status:
-        situationMost || 'ERRO',
+      status: situationMost || 'ERRO',
 
       bankSpecificData: {
         santander: {

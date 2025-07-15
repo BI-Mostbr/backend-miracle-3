@@ -9,8 +9,6 @@ export class SantanderProposalRepository {
     clientMostId?: bigint
   ): Promise<ISantanderProposalDetails> {
     try {
-      console.log('acessando a rpository')
-      console.log(details)
       const santanderData = await this.prisma.tb_santander.create({
         data: {
           id_proposta: details.id_proposta,

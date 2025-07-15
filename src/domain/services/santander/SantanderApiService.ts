@@ -17,6 +17,24 @@ import { SantanderProposalResponseInternMapper } from './mappers/SantanderPropos
 import { cleanMoney } from 'Utils/removeMasks'
 import { mapToStatusSantander } from 'Utils/mapToStatus'
 
+function safeNumberCreditoAprovado(value: any): number {
+  if (
+    typeof value === 'undefined' ||
+    value === null ||
+    value === 0 ||
+    value === '0' ||
+    value === '' ||
+    isNaN(Number(value))
+  ) {
+    return 0
+  }
+  try {
+    return Number(value)
+  } catch {
+    return 0
+  }
+}
+
 export class SantanderApiService implements IBankApiService {
   private readonly authService: SantanderAuthService
   private readonly httpClient: SantanderHttpClient
@@ -39,6 +57,11 @@ export class SantanderApiService implements IBankApiService {
       simulation,
       false
     )
+    console.log(
+      'Payload simulationCredit (descriptografado):',
+      santanderPayload
+    )
+
     const bodyEncriptado = encryptAes(JSON.stringify(santanderPayload))
     const santanderResponse = await this.httpClient.simulateCredit(
       bodyEncriptado,
@@ -46,6 +69,11 @@ export class SantanderApiService implements IBankApiService {
     )
     let santanderResponseDrcript = JSON.parse(decryptAes(santanderResponse.enc))
       .data.calculateSimulation
+
+    console.log(
+      'Response simulationCredit (descriptografado):',
+      santanderResponseDrcript
+    )
 
     if (simulation.amortizationType === 'PRICE') {
       const idSimulationEncript = encryptAes(
@@ -55,15 +83,22 @@ export class SantanderApiService implements IBankApiService {
         santanderResponseDrcript.simulationId,
         true
       )
-      const customBodyEncriptado = encryptAes(JSON.stringify(customPayload))
+      console.log(
+        'Payload simulationCredit custom (descriptografado):',
+        customPayload
+      )
 
+      const customBodyEncriptado = encryptAes(JSON.stringify(customPayload))
       const customResponse = await this.httpClient.simulateCreditCustom(
         customBodyEncriptado,
         idSimulationEncript,
         accessTokenDecript
       )
-
       santanderResponseDrcript = JSON.parse(decryptAes(customResponse.enc))
+      console.log(
+        'Response simulationCredit custom (descriptografado):',
+        santanderResponseDrcript
+      )
     }
 
     const internSantanderResponse =
@@ -74,7 +109,7 @@ export class SantanderApiService implements IBankApiService {
     return internSantanderResponse
   }
 
-  async getSimulation(request: any) {
+  async getSimulation(request: any): Promise<any> {
     const idSimulation = request.idSimulation
     const accessToken = await this.authService.getAccessToken()
     const accessTokenDecript = JSON.parse(decryptAes(accessToken)).access_token
@@ -86,35 +121,151 @@ export class SantanderApiService implements IBankApiService {
     const santanderPdfResponseDecript = JSON.parse(
       decryptAes(santanderPdfResponse.enc)
     )
+    console.log(
+      'getSimulation response (descriptografado):',
+      santanderPdfResponseDecript
+    )
     return santanderPdfResponseDecript
+  }
+
+  private getSegundoProponenteOuConjugePayload(
+    proposal: CreditProposal
+  ): CreditProposal {
+    if (proposal.spouse) {
+      return {
+        ...proposal,
+        document: proposal.spouse.document,
+        name: proposal.spouse.name,
+        birthday: proposal.spouse.birthday,
+        phone: proposal.spouse.phone,
+        email: proposal.spouse.email,
+        motherName: proposal.spouse.motherName,
+        gender: proposal.spouse.gender,
+        documentType: proposal.spouse.documentType,
+        documentNumber: proposal.spouse.documentNumber,
+        documentIssuer: proposal.spouse.documentIssuer,
+        documentIssueDate: proposal.spouse.documentIssueDate,
+        ufDataUser: proposal.spouse.spouseUfDataUser,
+        monthlyIncome: proposal.spouse.monthlyIncome,
+        profession: proposal.spouse.profession,
+        workType: proposal.spouse.workType,
+        professionalPosition: proposal.spouse.professionalPosition,
+        maritalStatus: proposal.spouse.civilStatus,
+        userAddress: {
+          cep: proposal.spouse.cep,
+          logradouro: proposal.spouse.logradouro,
+          complemento: proposal.spouse.complemento,
+          bairro: proposal.spouse.bairro,
+          localidade: proposal.spouse.localidade,
+          uf: proposal.spouse.uf,
+          estado: proposal.spouse.uf,
+          regiao: proposal.spouse.regiao,
+          ibge: '',
+          gia: '',
+          ddd: '',
+          siafi: '',
+          number: proposal.spouse.number,
+          complement: proposal.spouse.complement,
+          unidade: proposal.spouse.unidade
+        }
+      }
+    }
+    if (proposal.secondProponent) {
+      return {
+        ...proposal,
+        document: proposal.secondProponent.document,
+        name: proposal.secondProponent.name,
+        birthday: proposal.secondProponent.birthday,
+        phone: proposal.secondProponent.phone,
+        email: proposal.secondProponent.email,
+        motherName: proposal.secondProponent.motherName,
+        gender: proposal.secondProponent.gender,
+        documentType: proposal.secondProponent.documentType,
+        documentNumber: proposal.secondProponent.documentNumber,
+        documentIssuer: proposal.secondProponent.documentIssuer,
+        documentIssueDate: proposal.secondProponent.documentIssueDate,
+        ufDataUser: proposal.secondProponent.uf,
+        monthlyIncome: proposal.secondProponent.monthlyIncome,
+        profession: proposal.secondProponent.profession,
+        workType: proposal.secondProponent.workType,
+        professionalPosition: proposal.secondProponent.professionalPosition,
+        maritalStatus: proposal.secondProponent.civilStatus,
+        userAddress: {
+          cep: proposal.secondProponent.cep,
+          logradouro: proposal.secondProponent.logradouro,
+          complemento: proposal.secondProponent.complement,
+          bairro: proposal.secondProponent.bairro,
+          localidade: proposal.secondProponent.localidade,
+          uf: proposal.secondProponent.uf,
+          estado: proposal.secondProponent.uf,
+          regiao: '',
+          ibge: '',
+          gia: '',
+          ddd: '',
+          siafi: '',
+          number: proposal.secondProponent.number,
+          complement: proposal.secondProponent.complement,
+          unidade: ''
+        }
+      }
+    }
+    return proposal
+  }
+
+  private async integrateMiniPersonas(
+    proposal: CreditProposal,
+    simulationId: string,
+    code: string,
+    accessToken: string
+  ) {
+    const payload = SantanderMiniPersonasPayloadMapper.convertToPayload(
+      proposal,
+      simulationId,
+      code
+    )
+    console.log('Payload MiniPersonas (descriptografado):', payload)
+
+    const encrypted = encryptAes(JSON.stringify(payload))
+    const response = await this.httpClient.integrateMiniPersonas(
+      encrypted,
+      accessToken
+    )
+    const decrypted = JSON.parse(decryptAes(response.enc))
+    console.log('Response MiniPersonas (descriptografado):', decrypted)
+    return decrypted
   }
 
   async sendProposal(proposal: CreditProposal): Promise<BankProposalResponse> {
     const accessToken = await this.authService.getAccessToken()
     const accessTokenDecript = JSON.parse(decryptAes(accessToken)).access_token
+
     let santanderPayload = SantanderProposalPayloadMapper.convertToPayload(
       proposal,
       false
     )
-    console.log('-----------------Payload Simulação Simples')
-    console.log(JSON.stringify(santanderPayload))
-    let bodyEncriptado = encryptAes(JSON.stringify(santanderPayload))
+    console.log(
+      'Payload simulação simples (descriptografado):',
+      santanderPayload
+    )
 
+    let bodyEncriptado = encryptAes(JSON.stringify(santanderPayload))
     let valorFinanciado = cleanMoney(proposal.financedValue)
 
     let santanderResponse = await this.httpClient.simulateCredit(
       bodyEncriptado,
       accessTokenDecript
     )
-
     let santanderResponseDrcript = JSON.parse(decryptAes(santanderResponse.enc))
+    console.log(
+      'Response simulação simples (descriptografado):',
+      santanderResponseDrcript
+    )
 
-    const messageError = JSON.parse(decryptAes(santanderResponse.enc))
-      .errors?.[0]?.extensions?.messages?.[1]?.message
+    const messageError =
+      santanderResponseDrcript?.errors?.[0]?.extensions?.messages?.[1]?.message
 
     if (messageError) {
       const match = messageError.match(/menor que (\d+)/)
-
       if (match) {
         const valorLimite = Number(match[1])
         valorFinanciado = Number(valorLimite) - 1
@@ -122,25 +273,28 @@ export class SantanderApiService implements IBankApiService {
           ...proposal,
           financedValue: valorFinanciado.toString()
         }
-
         santanderPayload = SantanderProposalPayloadMapper.convertToPayload(
           proposalCorrigido,
           false
         )
+        console.log('Payload corrigido (descriptografado):', santanderPayload)
 
         bodyEncriptado = encryptAes(JSON.stringify(santanderPayload))
-
         santanderResponse = await this.httpClient.simulateCredit(
           bodyEncriptado,
           accessTokenDecript
         )
-
         santanderResponseDrcript = JSON.parse(decryptAes(santanderResponse.enc))
-          .data.calculateSimulation
+          .data?.calculateSimulation
+        console.log(
+          'Response simulação corrigida (descriptografado):',
+          santanderResponseDrcript
+        )
       }
     } else {
-      santanderResponseDrcript = JSON.parse(decryptAes(santanderResponse.enc))
-        .data.calculateSimulation
+      santanderResponseDrcript =
+        santanderResponseDrcript.data?.calculateSimulation ??
+        santanderResponseDrcript
     }
 
     const idSimulationEncript = encryptAes(
@@ -157,74 +311,56 @@ export class SantanderApiService implements IBankApiService {
         true,
         santanderResponseDrcript.simulationId
       )
+      console.log('Payload custom (descriptografado):', customPayload)
 
       const customBodyEncriptado = encryptAes(JSON.stringify(customPayload))
-
       const customResponse = await this.httpClient.simulateCreditCustom(
         customBodyEncriptado,
         idSimulationEncript,
         accessTokenDecript
       )
-
       santanderResponseDrcript = JSON.parse(decryptAes(customResponse.enc))
+      console.log(
+        'Response custom (descriptografado):',
+        santanderResponseDrcript
+      )
     }
 
-    console.log(santanderResponseDrcript)
-
-    const saveSimulationResponse = await this.httpClient.saveSimulation(
+    await this.httpClient.saveSimulation(
       idSimulationEncript,
       accessTokenDecript
     )
-
-    console.log('-----------------saveSimulation')
-    console.log(saveSimulationResponse)
-    console.log(decryptAes(saveSimulationResponse.enc))
 
     const analyzeCreditPayload =
       SantanderAnalyzeCreditPayloadMapper.convertToPayload(
         santanderResponseDrcript.simulationId
       )
+    console.log(
+      'Payload analyzeCredit (descriptografado):',
+      analyzeCreditPayload
+    )
 
     const analyzeCreditEncrypt = encryptAes(
       JSON.stringify(analyzeCreditPayload)
     )
-    console.log('-----------------AnalyzeCredit')
-    console.log('Payload analyze Credit: ', analyzeCreditPayload)
-
     let analyzeCreditResponse = await this.httpClient.analyzeCredit(
       analyzeCreditEncrypt,
       accessTokenDecript
     )
-
     let analyzeCreditDecript = JSON.parse(decryptAes(analyzeCreditResponse.enc))
-
     console.log(
-      'AnalyzeCredit sem miniPersonas: ',
-      JSON.stringify(analyzeCreditDecript)
+      'Response analyzeCredit (descriptografado):',
+      analyzeCreditDecript
     )
 
-    if (analyzeCreditDecript.data.analyzeCredit.returnCode === '301') {
-      const integrateMiniPersonasPayload =
-        SantanderMiniPersonasPayloadMapper.convertToPayload(
-          proposal,
-          santanderResponseDrcript.simulationId,
-          '1250'
-        )
-      console.log(JSON.stringify(integrateMiniPersonasPayload))
-      const integrateMiniPersonasPayloadEncrypt = encryptAes(
-        JSON.stringify(integrateMiniPersonasPayload)
-      )
-      const integrateMiniPersonasResponse =
-        await this.httpClient.integrateMiniPersonas(
-          integrateMiniPersonasPayloadEncrypt,
-          accessTokenDecript
-        )
-      const integrateMiniPersonasDecript = JSON.parse(
-        decryptAes(integrateMiniPersonasResponse.enc)
-      )
-      console.log(
-        'Mini Personas 301: ',
-        JSON.stringify(integrateMiniPersonasDecript)
+    let returnCode = analyzeCreditDecript.data.analyzeCredit.returnCode
+
+    if (returnCode === '301') {
+      await this.integrateMiniPersonas(
+        proposal,
+        santanderResponseDrcript.simulationId,
+        '1250',
+        accessTokenDecript
       )
       analyzeCreditResponse = await this.httpClient.analyzeCredit(
         analyzeCreditEncrypt,
@@ -232,376 +368,132 @@ export class SantanderApiService implements IBankApiService {
       )
       analyzeCreditDecript = JSON.parse(decryptAes(analyzeCreditResponse.enc))
       console.log(
-        'Analyze Credit Integrate Mini Personas 301: ',
-        JSON.stringify(analyzeCreditDecript)
+        'Response analyzeCredit pós MiniPersonas 301 (descriptografado):',
+        analyzeCreditDecript
       )
-
-      // PRESERVAR O SIMULATION ID ORIGINAL
-      const originalSimulationId = santanderResponseDrcript.simulationId
-      console.log(
-        '🔍 Original simulationId para frontend (301):',
-        originalSimulationId
-      )
-
-      const bankResponse301: BankProposalResponse = {
-        proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
-        bankName: 'Santander',
-        simulationId: originalSimulationId,
-        status: mapToStatusSantander(
-          analyzeCreditDecript.data.analyzeCredit.statusCode),
-        bankSpecificData: {
-          santander: {
-            simulationId: originalSimulationId,
-            financingObjective: santanderResponseDrcript.financingObjective,
-            financingObjectiveKey:
-              santanderResponseDrcript.financingObjectiveKey,
-            propertyValue: santanderResponseDrcript.propertyValue,
-            fgtsAmount: santanderResponseDrcript.fgtsAmount,
-            financingValue: santanderResponseDrcript.financingValue,
-            financingDeadlineInYears:
-              santanderResponseDrcript.financingDeadlineInYears,
-            financingDeadlineInMonths:
-              santanderResponseDrcript.financingDeadlineInMonths,
-            minimumFinancingDeadlineInMonths:
-              santanderResponseDrcript.minimumFinancingDeadlineInMonths,
-            maximumFinancingDeadlineInMonths:
-              santanderResponseDrcript.maximumFinancingDeadlineInMonths,
-            minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
-            maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
-            downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
-            expensesFinancedValue:
-              santanderResponseDrcript.expensesFinancedValue,
-            iofValue: santanderResponseDrcript.iofValue,
-            valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
-            totalFinancingValueWithExpenses:
-              santanderResponseDrcript.totalFinancingValueWithExpenses,
-            trIndexer: santanderResponseDrcript.trIndexer,
-            customerPortfolioName:
-              santanderResponseDrcript.customerPortfolioName,
-            campaign: santanderResponseDrcript.campaign,
-            campaignKey: santanderResponseDrcript.campaignKey,
-            segment: santanderResponseDrcript.segment,
-            segmentKey: santanderResponseDrcript.segmentKey,
-            relationShipOffer: santanderResponseDrcript.relationShipOffer,
-            relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
-            insurer: santanderResponseDrcript.insurer,
-            insurerKey: santanderResponseDrcript.insurerKey,
-            amortizationType: santanderResponseDrcript.amortizationType,
-            amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
-            paymentType: santanderResponseDrcript.paymentType,
-            paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
-            allowsToFinanceWarrantyEvaluationFee:
-              santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
-            allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
-            allowsToFinancePropertyRegistrationAndITBI:
-              santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
-            allowsFGTS: santanderResponseDrcript.allowsFGTS,
-            relationShipFlow: santanderResponseDrcript.relationShipFlow,
-            unrelatedFlow: {
-              calculatedSimulationType:
-                santanderResponseDrcript.unrelatedFlow
-                  ?.calculatedSimulationType || '',
-              annualInterestRate:
-                santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
-              monthlyInterestRate:
-                santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate ||
-                0,
-              firstPaymentAmount:
-                santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
-              lastPaymentAmount:
-                santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
-              cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
-              ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
-            }
-          }
-        }
-      }
-
-      return bankResponse301
     }
-
-    if (analyzeCreditDecript.data.analyzeCredit.returnCode === '302') {
-      let proponenteParaPayload: CreditProposal | undefined = undefined
-
-      if (proposal.spouse) {
-        proponenteParaPayload = {
-          ...proposal,
-          document: proposal.spouse.document,
-          name: proposal.spouse.name,
-          birthday: proposal.spouse.birthday,
-          phone: proposal.spouse.phone,
-          email: proposal.spouse.email,
-          motherName: proposal.spouse.motherName,
-          gender: proposal.spouse.gender,
-          documentType: proposal.spouse.documentType,
-          documentNumber: proposal.spouse.documentNumber,
-          documentIssuer: proposal.spouse.documentIssuer,
-          documentIssueDate: proposal.spouse.documentIssueDate,
-          ufDataUser: proposal.spouse.spouseUfDataUser,
-          monthlyIncome: proposal.spouse.monthlyIncome,
-          profession: proposal.spouse.profession,
-          workType: proposal.spouse.workType,
-          professionalPosition: proposal.spouse.professionalPosition,
-          maritalStatus: proposal.spouse.civilStatus,
-          userAddress: {
-            cep: proposal.spouse.cep,
-            logradouro: proposal.spouse.logradouro,
-            complemento: proposal.spouse.complemento,
-            bairro: proposal.spouse.bairro,
-            localidade: proposal.spouse.localidade,
-            uf: proposal.spouse.uf,
-            estado: proposal.spouse.uf,
-            regiao: proposal.spouse.regiao,
-            ibge: '',
-            gia: '',
-            ddd: '',
-            siafi: '',
-            number: proposal.spouse.number,
-            complement: proposal.spouse.complement,
-            unidade: proposal.spouse.unidade
-          }
-        }
-      } else if (proposal.secondProponent) {
-        //If se for casado
-        proponenteParaPayload = {
-          ...proposal,
-          document: proposal.secondProponent.document,
-          name: proposal.secondProponent.name,
-          birthday: proposal.secondProponent.birthday,
-          phone: proposal.secondProponent.phone,
-          email: proposal.secondProponent.email,
-          motherName: proposal.secondProponent.motherName,
-          gender: proposal.secondProponent.gender,
-          documentType: proposal.secondProponent.documentType,
-          documentNumber: proposal.secondProponent.documentNumber,
-          documentIssuer: proposal.secondProponent.documentIssuer,
-          documentIssueDate: proposal.secondProponent.documentIssueDate,
-          ufDataUser: proposal.secondProponent.uf,
-          monthlyIncome: proposal.secondProponent.monthlyIncome,
-          profession: proposal.secondProponent.profession,
-          workType: proposal.secondProponent.workType,
-          professionalPosition: proposal.secondProponent.professionalPosition,
-          maritalStatus: proposal.secondProponent.civilStatus,
-          userAddress: {
-            cep: proposal.secondProponent.cep,
-            logradouro: proposal.secondProponent.logradouro,
-            complemento: proposal.secondProponent.complement,
-            bairro: proposal.secondProponent.bairro,
-            localidade: proposal.secondProponent.localidade,
-            uf: proposal.secondProponent.uf,
-            estado: proposal.secondProponent.uf,
-            regiao: '',
-            ibge: '',
-            gia: '',
-            ddd: '',
-            siafi: '',
-            number: proposal.secondProponent.number,
-            complement: proposal.secondProponent.complement,
-            unidade: ''
-          }
-        }
-      }
-      const payloadParaIntegrate = proponenteParaPayload ?? proposal
-
-      const integrateMiniPersonasPayload =
-        SantanderMiniPersonasPayloadMapper.convertToPayload(
-          payloadParaIntegrate,
-          santanderResponseDrcript.simulationId,
-          '1250'
-        )
-
-      console.log(JSON.stringify(integrateMiniPersonasPayload))
-
-      const integrateMiniPersonasPayloadEncrypt = encryptAes(
-        JSON.stringify(integrateMiniPersonasPayload)
+    if (returnCode === '302') {
+      const proponente = this.getSegundoProponenteOuConjugePayload(proposal)
+      await this.integrateMiniPersonas(
+        proponente,
+        santanderResponseDrcript.simulationId,
+        '1250',
+        accessTokenDecript
       )
-
-      const integrateMiniPersonasResponse =
-        await this.httpClient.integrateMiniPersonas(
-          integrateMiniPersonasPayloadEncrypt,
-          accessTokenDecript
-        )
-
-      const integrateMiniPersonasDecript = JSON.parse(
-        decryptAes(integrateMiniPersonasResponse.enc)
-      )
-      console.log('Mini Personas 302: ', integrateMiniPersonasDecript)
-
       analyzeCreditResponse = await this.httpClient.analyzeCredit(
         analyzeCreditEncrypt,
         accessTokenDecript
       )
       analyzeCreditDecript = JSON.parse(decryptAes(analyzeCreditResponse.enc))
       console.log(
-        'Analyze Credit Integrate Mini Personas 302: ',
-        JSON.stringify(analyzeCreditDecript)
+        'Response analyzeCredit pós MiniPersonas 302 (descriptografado):',
+        analyzeCreditDecript
       )
-
-      // PRESERVAR O SIMULATION ID ORIGINAL
-      const originalSimulationId = santanderResponseDrcript.simulationId
+    }
+    if (returnCode === '303') {
+      await this.integrateMiniPersonas(
+        proposal,
+        santanderResponseDrcript.simulationId,
+        '1250',
+        accessTokenDecript
+      )
+      const proponente = this.getSegundoProponenteOuConjugePayload(proposal)
+      await this.integrateMiniPersonas(
+        proponente,
+        santanderResponseDrcript.simulationId,
+        '1250',
+        accessTokenDecript
+      )
+      analyzeCreditResponse = await this.httpClient.analyzeCredit(
+        analyzeCreditEncrypt,
+        accessTokenDecript
+      )
+      analyzeCreditDecript = JSON.parse(decryptAes(analyzeCreditResponse.enc))
       console.log(
-        '🔍 Original simulationId para frontend (302):',
-        originalSimulationId
+        'Response analyzeCredit pós MiniPersonas 303 (descriptografado):',
+        analyzeCreditDecript
       )
-
-      const bankResponse302: BankProposalResponse = {
-        proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
-        bankName: 'Santander',
-        simulationId: originalSimulationId,
-        status: mapToStatusSantander(
-          analyzeCreditDecript.data.analyzeCredit.returnCode),
-        bankSpecificData: {
-          santander: {
-            simulationId: originalSimulationId,
-            financingObjective: santanderResponseDrcript.financingObjective,
-            financingObjectiveKey:
-              santanderResponseDrcript.financingObjectiveKey,
-            propertyValue: santanderResponseDrcript.propertyValue,
-            fgtsAmount: santanderResponseDrcript.fgtsAmount,
-            financingValue: santanderResponseDrcript.financingValue,
-            financingDeadlineInYears:
-              santanderResponseDrcript.financingDeadlineInYears,
-            financingDeadlineInMonths:
-              santanderResponseDrcript.financingDeadlineInMonths,
-            minimumFinancingDeadlineInMonths:
-              santanderResponseDrcript.minimumFinancingDeadlineInMonths,
-            maximumFinancingDeadlineInMonths:
-              santanderResponseDrcript.maximumFinancingDeadlineInMonths,
-            minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
-            maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
-            downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
-            expensesFinancedValue:
-              santanderResponseDrcript.expensesFinancedValue,
-            iofValue: santanderResponseDrcript.iofValue,
-            valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
-            totalFinancingValueWithExpenses:
-              santanderResponseDrcript.totalFinancingValueWithExpenses,
-            trIndexer: santanderResponseDrcript.trIndexer,
-            customerPortfolioName:
-              santanderResponseDrcript.customerPortfolioName,
-            campaign: santanderResponseDrcript.campaign,
-            campaignKey: santanderResponseDrcript.campaignKey,
-            segment: santanderResponseDrcript.segment,
-            segmentKey: santanderResponseDrcript.segmentKey,
-            relationShipOffer: santanderResponseDrcript.relationShipOffer,
-            relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
-            insurer: santanderResponseDrcript.insurer,
-            insurerKey: santanderResponseDrcript.insurerKey,
-            amortizationType: santanderResponseDrcript.amortizationType,
-            amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
-            paymentType: santanderResponseDrcript.paymentType,
-            paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
-            allowsToFinanceWarrantyEvaluationFee:
-              santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
-            allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
-            allowsToFinancePropertyRegistrationAndITBI:
-              santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
-            allowsFGTS: santanderResponseDrcript.allowsFGTS,
-            relationShipFlow: santanderResponseDrcript.relationShipFlow,
-            unrelatedFlow: {
-              calculatedSimulationType:
-                santanderResponseDrcript.unrelatedFlow
-                  ?.calculatedSimulationType || '',
-              annualInterestRate:
-                santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
-              monthlyInterestRate:
-                santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate ||
-                0,
-              firstPaymentAmount:
-                santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
-              lastPaymentAmount:
-                santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
-              cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
-              ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
-            }
-          }
-        }
-      }
-
-      return bankResponse302
     }
 
-    console.log(analyzeCreditDecript)
+    // Safe helpers para campos numéricos e strings
+    const safe = (value: any, fallback: any = 0) =>
+      typeof value === 'undefined' || value === null ? fallback : value
+    const safeString = (value: any, fallback: string = '') =>
+      typeof value === 'undefined' || value === null ? fallback : String(value)
 
-    // PRESERVAR O SIMULATION ID ORIGINAL
-    const originalSimulationId = santanderResponseDrcript.simulationId
-    console.log(
-      '🔍 Original simulationId para frontend (default):',
-      originalSimulationId
+    const santander = santanderResponseDrcript || {}
+    const unrelatedFlow = santander.unrelatedFlow || {}
+    const originalSimulationId = santander.simulationId || ''
+
+    // Garante que financingValue nunca será undefined ou inválido ao salvar
+    const financingValueNumber = safeNumberCreditoAprovado(
+      santander.financingValue
     )
 
     const bankResponse =
       SantanderProposalResponseInternMapper.convertToInternalResponse(
-        santanderResponseDrcript, analyzeCreditDecript
+        santander,
+        analyzeCreditDecript
       )
-
-    // ADICIONAR O SIMULATION ID ORIGINAL NO RESPONSE
     bankResponse.simulationId = originalSimulationId
-
-    // PRESERVAR OS DADOS DA SIMULAÇÃO ORIGINAL
     if (!bankResponse.bankSpecificData) {
       bankResponse.bankSpecificData = {}
     }
-
-    // Sobrescrever completamente os dados do Santander com os dados da simulação original
     bankResponse.bankSpecificData.santander = {
       simulationId: originalSimulationId,
-      financingObjective: santanderResponseDrcript.financingObjective,
-      financingObjectiveKey: santanderResponseDrcript.financingObjectiveKey,
-      propertyValue: santanderResponseDrcript.propertyValue,
-      fgtsAmount: santanderResponseDrcript.fgtsAmount,
-      financingValue: santanderResponseDrcript.financingValue,
-      financingDeadlineInYears:
-        santanderResponseDrcript.financingDeadlineInYears,
-      financingDeadlineInMonths:
-        santanderResponseDrcript.financingDeadlineInMonths,
-      minimumFinancingDeadlineInMonths:
-        santanderResponseDrcript.minimumFinancingDeadlineInMonths,
-      maximumFinancingDeadlineInMonths:
-        santanderResponseDrcript.maximumFinancingDeadlineInMonths,
-      minFinancingAmount: santanderResponseDrcript.minFinancingAmount,
-      maxFinancingAmount: santanderResponseDrcript.maxFinancingAmount,
-      downPaymentAmount: santanderResponseDrcript.downPaymentAmount,
-      expensesFinancedValue: santanderResponseDrcript.expensesFinancedValue,
-      iofValue: santanderResponseDrcript.iofValue,
-      valuationFeeAmount: santanderResponseDrcript.valuationFeeAmount,
-      totalFinancingValueWithExpenses:
-        santanderResponseDrcript.totalFinancingValueWithExpenses,
-      trIndexer: santanderResponseDrcript.trIndexer,
-      customerPortfolioName: santanderResponseDrcript.customerPortfolioName,
-      campaign: santanderResponseDrcript.campaign,
-      campaignKey: santanderResponseDrcript.campaignKey,
-      segment: santanderResponseDrcript.segment,
-      segmentKey: santanderResponseDrcript.segmentKey,
-      relationShipOffer: santanderResponseDrcript.relationShipOffer,
-      relationShipOfferKey: santanderResponseDrcript.relationShipOfferKey,
-      insurer: santanderResponseDrcript.insurer,
-      insurerKey: santanderResponseDrcript.insurerKey,
-      amortizationType: santanderResponseDrcript.amortizationType,
-      amortizationTypeKey: santanderResponseDrcript.amortizationTypeKey,
-      paymentType: santanderResponseDrcript.paymentType,
-      paymentTypeKey: santanderResponseDrcript.paymentTypeKey,
+      financingObjective: safeString(santander.financingObjective),
+      financingObjectiveKey: safeString(santander.financingObjectiveKey),
+      propertyValue: safe(santander.propertyValue),
+      fgtsAmount: safe(santander.fgtsAmount),
+      financingValue: financingValueNumber,
+      financingDeadlineInYears: safe(santander.financingDeadlineInYears),
+      financingDeadlineInMonths: safe(santander.financingDeadlineInMonths),
+      minimumFinancingDeadlineInMonths: safe(
+        santander.minimumFinancingDeadlineInMonths
+      ),
+      maximumFinancingDeadlineInMonths: safe(
+        santander.maximumFinancingDeadlineInMonths
+      ),
+      minFinancingAmount: safe(santander.minFinancingAmount),
+      maxFinancingAmount: safe(santander.maxFinancingAmount),
+      downPaymentAmount: safe(santander.downPaymentAmount),
+      expensesFinancedValue: safe(santander.expensesFinancedValue),
+      iofValue: safe(santander.iofValue),
+      valuationFeeAmount: safe(santander.valuationFeeAmount),
+      totalFinancingValueWithExpenses: safe(
+        santander.totalFinancingValueWithExpenses
+      ),
+      trIndexer: safeString(santander.trIndexer),
+      customerPortfolioName: safeString(santander.customerPortfolioName),
+      campaign: safeString(santander.campaign),
+      campaignKey: safeString(santander.campaignKey),
+      segment: safeString(santander.segment),
+      segmentKey: safeString(santander.segmentKey),
+      relationShipOffer: safeString(santander.relationShipOffer),
+      relationShipOfferKey: safeString(santander.relationShipOfferKey),
+      insurer: safeString(santander.insurer),
+      insurerKey: safeString(santander.insurerKey),
+      amortizationType: safeString(santander.amortizationType),
+      amortizationTypeKey: safeString(santander.amortizationTypeKey),
+      paymentType: safeString(santander.paymentType),
+      paymentTypeKey: safeString(santander.paymentTypeKey),
       allowsToFinanceWarrantyEvaluationFee:
-        santanderResponseDrcript.allowsToFinanceWarrantyEvaluationFee,
-      allowsToFinanceIOF: santanderResponseDrcript.allowsToFinanceIOF,
+        !!santander.allowsToFinanceWarrantyEvaluationFee,
+      allowsToFinanceIOF: !!santander.allowsToFinanceIOF,
       allowsToFinancePropertyRegistrationAndITBI:
-        santanderResponseDrcript.allowsToFinancePropertyRegistrationAndITBI,
-      allowsFGTS: santanderResponseDrcript.allowsFGTS,
-      relationShipFlow: santanderResponseDrcript.relationShipFlow,
+        !!santander.allowsToFinancePropertyRegistrationAndITBI,
+      allowsFGTS: !!santander.allowsFGTS,
+      relationShipFlow: santander.relationShipFlow || null,
       unrelatedFlow: {
-        calculatedSimulationType:
-          santanderResponseDrcript.unrelatedFlow?.calculatedSimulationType ||
-          '',
-        annualInterestRate:
-          santanderResponseDrcript.unrelatedFlow?.annualInterestRate || 0,
-        monthlyInterestRate:
-          santanderResponseDrcript.unrelatedFlow?.monthlyInterestRate || 0,
-        firstPaymentAmount:
-          santanderResponseDrcript.unrelatedFlow?.firstPaymentAmount || 0,
-        lastPaymentAmount:
-          santanderResponseDrcript.unrelatedFlow?.lastPaymentAmount || 0,
-        cetRate: santanderResponseDrcript.unrelatedFlow?.cetRate || 0,
-        ceshRate: santanderResponseDrcript.unrelatedFlow?.ceshRate || 0
+        calculatedSimulationType: safeString(
+          unrelatedFlow.calculatedSimulationType
+        ),
+        annualInterestRate: safe(unrelatedFlow.annualInterestRate),
+        monthlyInterestRate: safe(unrelatedFlow.monthlyInterestRate),
+        firstPaymentAmount: safe(unrelatedFlow.firstPaymentAmount),
+        lastPaymentAmount: safe(unrelatedFlow.lastPaymentAmount),
+        cetRate: safe(unrelatedFlow.cetRate),
+        ceshRate: safe(unrelatedFlow.ceshRate)
       }
     }
 
