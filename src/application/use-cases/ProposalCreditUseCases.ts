@@ -440,10 +440,8 @@ export class SendProposalUseCase {
       await SantanderProposalDetailsMapper.mapFromSantanderResponse(
         bankResponse,
         proposal,
-        deParaRepo,
         clientId
       )
-    console.log(santanderdetails)
     await sanatanderRepo.save(santanderdetails, clientId)
   }
 

@@ -5,28 +5,53 @@ import { decryptJasypt } from 'Utils/crypto'
 import { cleanMoney } from 'Utils/removeMasks'
 
 export class SantanderProposalDetailsMapper {
+  private static safeBigInt(value: any): bigint | null {
+    if (value === null || value === undefined || value === '') {
+      return null
+    }
+
+    if (typeof value === 'bigint') {
+      return value
+    }
+
+    try {
+      const numValue =
+        typeof value === 'string' ? parseInt(value, 10) : Number(value)
+      if (isNaN(numValue)) {
+        return null
+      }
+      return BigInt(numValue)
+    } catch (error) {
+      console.warn('Erro ao converter para BigInt:', value, error)
+      return null
+    }
+  }
+
+  private static safeBigIntWithDefault(
+    value: any,
+    defaultValue: bigint
+  ): bigint {
+    const result = this.safeBigInt(value)
+    return result !== null ? result : defaultValue
+  }
+
+  private static safeString(value: any): string | null {
+    if (value === null || value === undefined) {
+      return null
+    }
+    return String(value)
+  }
+
   static async mapFromSantanderResponse(
     santanderResponse: any,
     proposal: CreditProposal,
     clientMostId?: bigint
   ): Promise<ISantanderProposalDetails> {
-    console.log(
-      '🔍 Debug santanderResponse structure:',
-      JSON.stringify(santanderResponse, null, 2)
-    )
-
-    // ACESSAR OS DADOS CORRETOS
     const simulationData = santanderResponse.bankSpecificData?.santander || {}
     const analyzeData = santanderResponse.data?.analyzeCredit || {}
-
-    // USAR O SIMULATION ID DO BANK RESPONSE PRINCIPAL
     const simulationId =
       santanderResponse.simulationId || simulationData.simulationId
     const financingObjectiveKey = simulationData.financingObjectiveKey || '3'
-
-    console.log('🔍 simulationId:', simulationId)
-    console.log('🔍 financingObjectiveKey:', financingObjectiveKey)
-
     const financingValue = cleanMoney(proposal.financedValue)
     const propertyValue = cleanMoney(proposal.propertyValue)
     const ltv = (financingValue / propertyValue) * 100
@@ -43,19 +68,11 @@ export class SantanderProposalDetailsMapper {
       id_simulacao: simulationId ? decryptJasypt(simulationId) : null,
       id_cliente: clientMostId?.toString(),
       produto: this.mapProduct(financingObjectiveKey),
-      id_produto: financingObjectiveKey
-        ? BigInt(financingObjectiveKey)
-        : BigInt(3),
-
-      // USAR DADOS DA SIMULAÇÃO ORIGINAL QUANDO DISPONÍVEIS
+      id_produto: this.safeBigIntWithDefault(financingObjectiveKey, BigInt(3)),
       valor_imovel: simulationData.propertyValue || propertyValue,
       valor_fgts: simulationData.fgtsAmount || 0,
-      prazo_anos: simulationData.financingDeadlineInYears
-        ? BigInt(simulationData.financingDeadlineInYears)
-        : null,
-      prazo_meses: simulationData.financingDeadlineInMonths
-        ? BigInt(simulationData.financingDeadlineInMonths)
-        : null,
+      prazo_anos: this.safeBigInt(simulationData.financingDeadlineInYears),
+      prazo_meses: this.safeBigInt(simulationData.financingDeadlineInMonths),
       valor_financiamento_minimo: simulationData.minFinancingAmount || 0,
       valor_financiado_maximo: simulationData.maxFinancingAmount || 0,
       valor_entrada:
@@ -68,13 +85,15 @@ export class SantanderProposalDetailsMapper {
       indexador_tr: simulationData.trIndexer || 'TR',
       tipo_carteira: simulationData.customerPortfolioName || null,
       campanha: simulationData.campaign || null,
-      id_campanha: simulationData.campaignKey || null,
+      id_campanha: this.safeString(simulationData.campaignKey),
       segmento: simulationData.segment || null,
-      id_segmento: simulationData.segmentKey || null,
+      id_segmento: this.safeString(simulationData.segmentKey),
       oferta_relacionamento: simulationData.relationShipOffer || null,
-      id_oferta_relacionamento: simulationData.relationShipOfferKey || null,
+      id_oferta_relacionamento: this.safeString(
+        simulationData.relationShipOfferKey
+      ),
       seguro: simulationData.insurer || null,
-      id_seguro: simulationData.insurerKey || null,
+      id_seguro: this.safeString(simulationData.insurerKey),
       tipo_amortizacao: simulationData.amortizationType || null,
       chave_tipo_amortizacao: simulationData.amortizationTypeKey || null,
       tipo_pagamento: simulationData.paymentType || null,
@@ -91,16 +110,15 @@ export class SantanderProposalDetailsMapper {
         simulationData.unrelatedFlow?.lastPaymentAmount || null,
       valor_cet: simulationData.unrelatedFlow?.cetRate || null,
       valor_cesh: simulationData.unrelatedFlow?.ceshRate || null,
-
-      // STATUS BASEADO NO ANALYZE CREDIT
-      situacao:  santanderResponse.status || 'ENVIADO',
-
-      // OUTROS CAMPOS
+      situacao: santanderResponse.status || 'ENVIADO',
       ltv: ltv.toString(),
       valor_financiado: financingValue,
       id_cliente_most: clientMostId,
       id_status_most: BigInt(1),
-      id_situacao_most: BigInt(this.mapSituacao(santanderResponse.status)),
+      id_situacao_most: this.safeBigIntWithDefault(
+        this.mapSituacao(santanderResponse.status),
+        BigInt(1)
+      ),
       id_substatus_most: null,
       status_simulation: null,
       status_creditAnalysis: null,
@@ -120,7 +138,7 @@ export class SantanderProposalDetailsMapper {
         simulationData.unrelatedFlow?.annualInterestRate || null,
       total_documentos: null,
       proposta_copiada: false,
-      id_cliente_incorporador: null
+      id_cliente_incorporador: this.safeBigInt(null)
     }
   }
 
@@ -136,13 +154,14 @@ export class SantanderProposalDetailsMapper {
 
   private static mapSituacao(returnCode: string): number {
     const situacaoMap: { [key: string]: number } = {
-      'REPROVADO': 2,
-      'PENDENTE': 3,
-      'APROVADO': 1,
+      REPROVADO: 2,
+      PENDENTE: 3,
+      APROVADO: 1,
       'APROVADO A MENOR': 7,
-      'CANCELADO': 5
+      CANCELADO: 5,
+      'EM VALIDAÇÃO': 3
     }
-    return situacaoMap[returnCode]
+    return situacaoMap[returnCode] || 1
   }
 
   private static mapStatusGlobal(returnCode: string): string {
