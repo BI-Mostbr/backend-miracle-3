@@ -87,7 +87,7 @@ export class InterProposalPayloadMapper {
       tipoProduto: this.mapProductType(proposal.selectedProductOption),
       quantidadeParcelas: CreditProposalMapper.getTermAsNumber(proposal),
       valorSolicitado: CreditProposalMapper.getFinancedValueAsNumber(proposal),
-      parceiro: this.getPartnerId(proposal.selectedPartnerOption),
+      parceiro: 8249,
       imovel: {
         categoria: this.mapPropertyType(proposal.propertyType),
         valor: CreditProposalMapper.getPropertyValueAsNumber(proposal),
