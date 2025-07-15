@@ -64,8 +64,8 @@ export class InterHtppClient {
     }
 
     try {
-      console.log('📡 InterHttpClient: Enviando proposta')
-      console.log('📋 Payload da proposta:', JSON.stringify(payload, null, 2))
+      console.log('InterHttpClient: Enviando proposta')
+      console.log('Payload da proposta:', JSON.stringify(payload, null, 2))
 
       const response = await this.axiosInstance.post('/propostas', payload, {
         headers
