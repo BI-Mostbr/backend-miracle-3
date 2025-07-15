@@ -18,7 +18,7 @@ export class InterProposalPayloadMapper {
       email: proposal.email,
       estadoCivil: this.mapMaritalStatus(proposal.maritalStatus),
       sexo: this.mapGender(proposal.gender),
-      escolaridade: '8', // Ensino médio completo (padrão)
+      escolaridade: '8',
       profissao: this.mapProfession(proposal.profession),
       tipoRenda: this.mapIncomeType(proposal.workType),
       renda: CreditProposalMapper.getMonthlyIncomeAsNumber(proposal),
@@ -36,7 +36,6 @@ export class InterProposalPayloadMapper {
       flagAnuente: false
     })
 
-    // Adicionar cônjuge se existir e for válido
     if (this.hasValidSpouse(proposal)) {
       pessoas.push({
         tipoPessoa: 'CONJUGE',
@@ -83,6 +82,64 @@ export class InterProposalPayloadMapper {
       })
     }
 
+    if (this.hasValidSecondProponent(proposal)) {
+      pessoas.push({
+        tipoPessoa: 'EXTRA',
+        cpf: this.getCleanSecondProponentCpf(proposal),
+        nome: proposal.secondProponent!.name,
+        dtAniversario: this.formatDateForInter(
+          proposal.secondProponent!.birthday
+        ),
+        telefone:
+          proposal.secondProponent!.phone?.replace(/\D/g, '') ||
+          proposal.phone.replace(/\D/g, ''),
+        email: proposal.secondProponent!.email || proposal.email,
+        estadoCivil: this.mapMaritalStatus(
+          proposal.secondProponent!.civilStatus || proposal.maritalStatus
+        ),
+        sexo: this.mapGender(proposal.secondProponent!.gender),
+        escolaridade: '8',
+        profissao: this.mapProfession(proposal.secondProponent!.profession),
+        tipoRenda: this.mapIncomeType(proposal.secondProponent!.workType),
+        renda: this.getSecondProponentIncome(proposal),
+        endereco: {
+          cep:
+            proposal.secondProponent!.cep?.replace(/\D/g, '') ||
+            proposal.userAddress?.cep?.replace(/\D/g, '') ||
+            '',
+          descricao:
+            proposal.secondProponent!.logradouro ||
+            proposal.userAddress?.logradouro ||
+            '',
+          bairro:
+            proposal.secondProponent!.bairro ||
+            proposal.userAddress?.bairro ||
+            '',
+          cidade:
+            proposal.secondProponent!.localidade ||
+            proposal.userAddress?.localidade ||
+            '',
+          estado:
+            proposal.secondProponent!.uf ||
+            proposal.userAddress?.uf ||
+            proposal.uf,
+          numero: parseInt(
+            proposal.secondProponent!.number ||
+              proposal.userAddress?.number ||
+              '0'
+          ),
+          complemento:
+            proposal.secondProponent!.complement ||
+            proposal.userAddress?.complement ||
+            null
+        },
+        flagFiador: false,
+        flagAdquirente:
+          proposal.secondProponent?.spouseContributesIncome || false,
+        flagAnuente: false
+      })
+    }
+
     return {
       tipoProduto: this.mapProductType(proposal.selectedProductOption),
       quantidadeParcelas: CreditProposalMapper.getTermAsNumber(proposal),
@@ -103,12 +160,10 @@ export class InterProposalPayloadMapper {
   private static formatDateForInter(date: string): string {
     if (!date) return '01/01/2000'
 
-    // Se já está no formato DD/MM/YYYY
     if (date.includes('/')) {
       return date
     }
 
-    // Converter outros formatos
     try {
       const dateObj = new Date(date)
       if (isNaN(dateObj.getTime())) {
@@ -237,5 +292,28 @@ export class InterProposalPayloadMapper {
     }
 
     return parseInt(process.env.INTER_PARTNER_ID || '1')
+  }
+
+  private static hasValidSecondProponent(proposal: CreditProposal): boolean {
+    return !!(
+      proposal.secondProponent &&
+      proposal.secondProponent.document &&
+      proposal.secondProponent.name
+    )
+  }
+
+  private static getCleanSecondProponentCpf(proposal: CreditProposal): string {
+    return proposal.secondProponent?.document?.replace(/\D/g, '') || ''
+  }
+
+  private static getSecondProponentIncome(proposal: CreditProposal): number {
+    if (!proposal.secondProponent?.monthlyIncome) return 0
+
+    const income = proposal.secondProponent.monthlyIncome.toString()
+    return (
+      parseFloat(
+        income.replace(/[R$\s.,]/g, '').replace(/(\d)(\d{2})$/, '$1.$2')
+      ) || 0
+    )
   }
 }
