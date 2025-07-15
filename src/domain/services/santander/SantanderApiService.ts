@@ -15,6 +15,7 @@ import { SantanderMiniPersonasPayloadMapper } from './mappers/SantanderMiniPerso
 import { SantanderAnalyzeCreditPayloadMapper } from './mappers/SantanderAnalyzeCreditPayload.mapper'
 import { SantanderProposalResponseInternMapper } from './mappers/SantanderProposalResponseIntern.mapper'
 import { cleanMoney } from 'Utils/removeMasks'
+import { mapToStatusSantander } from 'Utils/mapToStatus'
 
 export class SantanderApiService implements IBankApiService {
   private readonly authService: SantanderAuthService
@@ -246,7 +247,8 @@ export class SantanderApiService implements IBankApiService {
         proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
         bankName: 'Santander',
         simulationId: originalSimulationId,
-        status: 'ENVIADO',
+        status: mapToStatusSantander(
+          analyzeCreditDecript.data.analyzeCredit.statusCode),
         bankSpecificData: {
           santander: {
             simulationId: originalSimulationId,
@@ -446,7 +448,8 @@ export class SantanderApiService implements IBankApiService {
         proposalId: analyzeCreditDecript.data.analyzeCredit.garraProposal || '',
         bankName: 'Santander',
         simulationId: originalSimulationId,
-        status: 'ENVIADO',
+        status: mapToStatusSantander(
+          analyzeCreditDecript.data.analyzeCredit.returnCode),
         bankSpecificData: {
           santander: {
             simulationId: originalSimulationId,
@@ -529,7 +532,7 @@ export class SantanderApiService implements IBankApiService {
 
     const bankResponse =
       SantanderProposalResponseInternMapper.convertToInternalResponse(
-        santanderResponseDrcript
+        santanderResponseDrcript, analyzeCreditDecript
       )
 
     // ADICIONAR O SIMULATION ID ORIGINAL NO RESPONSE

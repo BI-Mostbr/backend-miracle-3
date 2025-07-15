@@ -8,7 +8,6 @@ export class SantanderProposalDetailsMapper {
   static async mapFromSantanderResponse(
     santanderResponse: any,
     proposal: CreditProposal,
-    deParaRepository: DeParaRepository,
     clientMostId?: bigint
   ): Promise<ISantanderProposalDetails> {
     console.log(
@@ -35,26 +34,6 @@ export class SantanderProposalDetailsMapper {
     let statusMostData = {
       id_status_most: null as bigint | null,
       id_situacao_most: null as bigint | null
-    }
-
-    const statusGlobal = this.mapStatusGlobal(analyzeData.returnCode)
-    if (statusGlobal) {
-      try {
-        const SANTANDER_BANK_ID = 2
-        const statusResult = await deParaRepository.findStatusByGlobalStatus(
-          statusGlobal,
-          SANTANDER_BANK_ID
-        )
-        statusMostData = {
-          id_status_most: statusResult.id_status_most,
-          id_situacao_most: statusResult.id_situacao_most
-        }
-      } catch (error) {
-        console.warn(
-          `Não foi possível mapear status '${statusGlobal}' para o Santander:`,
-          error
-        )
-      }
     }
 
     return {
@@ -114,15 +93,14 @@ export class SantanderProposalDetailsMapper {
       valor_cesh: simulationData.unrelatedFlow?.ceshRate || null,
 
       // STATUS BASEADO NO ANALYZE CREDIT
-      situacao: this.mapSituacao(analyzeData.returnCode) || 'ENVIADO',
-      status_global: statusGlobal || 'ENVIADO',
+      situacao:  santanderResponse.status || 'ENVIADO',
 
       // OUTROS CAMPOS
       ltv: ltv.toString(),
       valor_financiado: financingValue,
       id_cliente_most: clientMostId,
-      id_status_most: statusMostData.id_status_most,
-      id_situacao_most: statusMostData.id_situacao_most,
+      id_status_most: BigInt(1),
+      id_situacao_most: BigInt(this.mapSituacao(santanderResponse.status)),
       id_substatus_most: null,
       status_simulation: null,
       status_creditAnalysis: null,
@@ -156,13 +134,15 @@ export class SantanderProposalDetailsMapper {
     return productMap[financingObjectiveKey] || 'ISOLADO'
   }
 
-  private static mapSituacao(returnCode: string): string {
-    const situacaoMap: { [key: string]: string } = {
-      '200': 'REPROVADO',
-      '301': 'PENDENTE',
-      '000': 'APROVADO'
+  private static mapSituacao(returnCode: string): number {
+    const situacaoMap: { [key: string]: number } = {
+      'REPROVADO': 2,
+      'PENDENTE': 3,
+      'APROVADO': 1,
+      'APROVADO A MENOR': 7,
+      'CANCELADO': 5
     }
-    return situacaoMap[returnCode] || 'ENVIADO'
+    return situacaoMap[returnCode]
   }
 
   private static mapStatusGlobal(returnCode: string): string {
