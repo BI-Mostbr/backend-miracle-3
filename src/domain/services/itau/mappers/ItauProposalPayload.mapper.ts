@@ -184,9 +184,8 @@ export class ItauProposalPayloadMapper {
     const statusMap: { [key: string]: string } = {
       solteiro: 'SINGLE',
       casado: 'MARRIED',
-      divorciado: 'DIVORCED',
-      viuvo: 'WIDOWED',
-      uniao_estavel: 'STABLE_UNION'
+      divorciado: 'JUDICIALLY_SEPARATED',
+      viuvo: 'WIDOWER'
     }
 
     return statusMap[maritalStatus.toLowerCase()] || 'SINGLE'
