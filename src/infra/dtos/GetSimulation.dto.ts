@@ -65,6 +65,19 @@ export interface GetSantanderSimulationResponse {
   stringBase64: string
 }
 
+export interface GetInterSimulationRequest {
+  cpf: string
+}
+
+export interface GetInterSimulationResponse {
+  success: boolean
+  data: any // Response direto do Inter
+  source: string
+  simulationId?: string
+  originalCpf: string
+  timestamp: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T
