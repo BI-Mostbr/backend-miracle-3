@@ -12,18 +12,25 @@ import { InterResponseMapper } from './mappers/interResponse.mapper'
 import { InterProposalPayloadMapper } from './mappers/InterProposalPayload.mapper'
 import { InterProposalResponseMapper } from './mappers/InterProposalResponse.mapper'
 import { delay } from 'Utils/delay'
+import { InterSimulationRepository } from '@infra/repositories/InterSimulation.repostory'
+import { RepositoryFactory } from '@infra/factories/Repository.factory'
+import {
+  GetInterSimulationRequest,
+  GetInterSimulationResponse
+} from '@infra/dtos/GetSimulation.dto'
+import { InterDbToSimulationMapper } from './mappers/InterDatabaseToSimulationPayload.mapper'
 
 export class InterApiService implements IBankApiService {
   private readonly authService: InterAuthService
   private readonly httpClient: InterHtppClient
+  private readonly interSimulationRepository: InterSimulationRepository
 
   constructor() {
     this.authService = new InterAuthService()
     this.httpClient = new InterHtppClient()
-  }
-
-  getSimulation(request: any): Promise<any> {
-    throw new Error('Method not implemented.')
+    this.interSimulationRepository = new InterSimulationRepository(
+      RepositoryFactory.getPrismaClient()
+    )
   }
 
   async simulationCredit(
@@ -128,6 +135,78 @@ export class InterApiService implements IBankApiService {
           }
         }
       }
+    }
+  }
+
+  async getSimulation(
+    request: GetInterSimulationRequest
+  ): Promise<GetInterSimulationResponse> {
+    try {
+      const interDbData = await this.interSimulationRepository.findByCpf(
+        request.cpf
+      )
+
+      if (!interDbData) {
+        throw new Error(
+          `Nenhuma simulação encontrada para o CPF ${request.cpf}`
+        )
+      }
+
+      const simulationData =
+        InterDbToSimulationMapper.mapToSimulation(interDbData)
+      const accessToken = await this.authService.getAccessToken()
+      const interPayload = InterPayloadMapper.convertToPayload(simulationData)
+      const interResponse = await this.httpClient.simulateCredit(
+        interPayload,
+        accessToken
+      )
+
+      return {
+        success: true,
+        data: interResponse,
+        source: 'inter_api',
+        simulationId: interResponse?.idSimulacao || interDbData.id?.toString(),
+        originalCpf: request.cpf,
+        timestamp: new Date().toISOString()
+      }
+    } catch (error) {
+      console.error(`Erro ao buscar simulação do Inter:`, error)
+
+      if (
+        error instanceof Error &&
+        error.message.includes('Bearer token inválido')
+      ) {
+        try {
+          const newAccessToken = await this.authService.getAccessToken()
+          const simulationData = InterDbToSimulationMapper.mapToSimulation(
+            (await this.interSimulationRepository.findByCpf(request.cpf)) as any
+          )
+          const interPayload =
+            InterPayloadMapper.convertToPayload(simulationData)
+          const retryResponse = await this.httpClient.simulateCredit(
+            interPayload,
+            newAccessToken
+          )
+
+          return {
+            success: true,
+            data: retryResponse,
+            source: 'inter_api_retry',
+            simulationId: retryResponse?.idSimulacao,
+            originalCpf: request.cpf,
+            timestamp: new Date().toISOString()
+          }
+        } catch (retryError) {
+          console.error(`Erro mesmo após renovação do token:`, retryError)
+          throw retryError
+        }
+      }
+
+      throw new Error(
+        `Erro ao buscar simulação do ${this.getBankName()}: ${
+          error instanceof Error ? error.message : 'Erro desconhecido'
+        }`
+      )
     }
   }
 

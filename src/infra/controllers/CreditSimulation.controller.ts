@@ -5,6 +5,7 @@ import {
 import { CreditSimulationWithPropertyType } from '@domain/services/BankParameterNormalizer'
 import {
   ApiResponse,
+  GetInterSimulationRequest,
   GetItauSimulationRequest,
   GetSantanderSimulationRequest
 } from '@infra/dtos/GetSimulation.dto'
@@ -227,12 +228,17 @@ export class CreditSimulationController {
             idSimulation: requestBody.idSimulation
           } as GetSantanderSimulationRequest
           break
+        case 'inter':
+          request = {
+            cpf: requestBody.cpf
+          } as GetInterSimulationRequest
+          break
 
         default:
           res.status(400).json({
             success: false,
             error: 'Banco não suportado',
-            supportedBanks: ['itau', 'santander']
+            supportedBanks: ['itau', 'santander', 'inter']
           })
           return
       }
@@ -270,7 +276,7 @@ export class CreditSimulationController {
           success: false,
           error: 'Banco não suportado',
           message: errorMessage,
-          supportedBanks: ['itau', 'santander']
+          supportedBanks: ['itau', 'santander', 'inter']
         })
       } else {
         res.status(500).json({

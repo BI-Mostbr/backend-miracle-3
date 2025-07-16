@@ -54,4 +54,55 @@ export class InterSimulationRepository implements IInterSimulationRepository {
       )
     }
   }
+
+  async findByCpf(cpf: string): Promise<IInterSimulationResponse | null> {
+    try {
+      const interData = await this.prisma.tb_simulacao_inter.findFirst({
+        where: { cpf: cpf },
+        orderBy: { created_at: 'desc' }
+      })
+
+      if (!interData) {
+        console.log(
+          `Nenhuma simulação encontrada na tb_simulacao_inter para CPF: ${cpf}`
+        )
+        return null
+      }
+
+      return {
+        id: interData.id,
+        created_at: interData.created_at,
+        data_nasc: interData.data_nasc,
+        tipoProduto: interData.tipoProduto,
+        valorEntrada: interData.valorEntrada,
+        quantidadeParcelas: interData.quantidadeParcelas,
+        valorSolicitado: interData.valorSolicitado,
+        valorImovel: interData.valorImovel,
+        categoriaImovel: interData.categoriaImovel,
+        estadoImovel: interData.estadoImovel,
+        produtoCompleto: interData.produtoCompleto,
+        taxaRegex: interData.taxaRegex,
+        valorPrimeiraParcela: interData.valorPrimeiraParcela,
+        valorUltimaParcela: interData.valorUltimaParcela,
+        valorTotal: interData.valorTotal,
+        totalCet: interData.totalCet,
+        totalCesh: interData.totalCesh,
+        sistemaAmortizacao: interData.sistemaAmortizacao,
+        despesas: interData.despesas,
+        despesasRegistro: interData.despesasRegistro,
+        percentualIof: interData.percentualIof,
+        percentualCet: interData.percentualCet,
+        percentualCesh: interData.percentualCesh,
+        urlEvolucaoTeorica: interData.urlEvolucaoTeorica,
+        rendaSugerida: interData.rendaSugerida,
+        cpf: interData.cpf,
+        id_usuario: interData.id_usuario
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados na tb_simulacao_inter:', error)
+      throw new Error(
+        `Erro ao buscar simulação do Inter para CPF ${cpf}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
+      )
+    }
+  }
 }

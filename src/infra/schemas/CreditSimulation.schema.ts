@@ -64,6 +64,13 @@ export const CreditSimulationRequestSchema = z
     }
   )
 
+export const GetInterSimulationRequestSchema = z.object({
+  cpf: z
+    .string()
+    .regex(/^\d{11}$/, 'CPF deve ter 11 dígitos')
+    .transform((cpf) => cpf.replace(/\D/g, ''))
+})
+
 export const BankNameParamSchema = z.object({
   bankName: z
     .string()
