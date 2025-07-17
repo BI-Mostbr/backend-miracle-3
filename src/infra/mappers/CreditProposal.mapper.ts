@@ -61,6 +61,7 @@ export class CreditProposalMapper {
       workType: request.workType,
       professionalPosition: request.professionalPosition,
       maritalStatus: request.maritalStatus,
+      stableUnion: request.stableUnion,
       matrimonialRegime: request.matrimonialRegime,
       marriageDate: request.marriageDate,
 

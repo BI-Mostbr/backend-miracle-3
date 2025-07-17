@@ -161,6 +161,7 @@ export const CreditProposalRequestSchema = z.object({
   profession: z.string().min(1, 'Profissão é obrigatória'),
   workType: z.string().min(1, 'Tipo de trabalho é obrigatório'),
   professionalPosition: z.string().min(1, 'Cargo é obrigatório').optional(),
+  stableUnion: z.boolean().optional(),
   maritalStatus: z.string().min(1, 'Estado civil é obrigatório'),
   matrimonialRegime: z.string().optional(),
   marriageDate: z.string().optional(),

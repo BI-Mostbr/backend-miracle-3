@@ -47,6 +47,7 @@ export interface CreditProposalRequest {
   professionalPosition: string
   maritalStatus: string // solteiro, casado, divorciado, viuvo
   matrimonialRegime?: string
+  stableUnion: boolean
   marriageDate?: string
 
   // Dados bancários
