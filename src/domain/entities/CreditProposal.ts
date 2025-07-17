@@ -38,6 +38,7 @@ export interface CreditProposal {
   professionalPosition: string
   maritalStatus: string
   matrimonialRegime?: string
+  stableUnion: boolean
   marriageDate?: string
   cepBankAgency: string
   agencyBank?: string
