@@ -10,6 +10,8 @@ import { ProposalControllerFactory } from '@infra/factories/ProposalController.f
 import { createCreditProposalRoutes } from '@infra/routes/CreditProposal.routes'
 import { ClientUpdateControllerFactory } from '@infra/factories/ClientUpdateController.factory'
 import { createClientUpdateRoutes } from '@infra/routes/ClientUpdate.routes'
+import { EvolucaoTeoricaFactory } from '@infra/factories/EvolucaoTeoricaInter.factory'
+import { createEvolucaoTeoricaRoutes } from '@infra/routes/EvolucaoTeorica.routes'
 const app = express()
 app.use(
   cors({
@@ -50,6 +52,12 @@ app.use('/api/credit', proposalRoutes)
 const clientUpdateController = ClientUpdateControllerFactory.createController()
 const clientUpdateRoutes = createClientUpdateRoutes(clientUpdateController)
 app.use('/api', clientUpdateRoutes)
+
+const evolucaoTeoricaController = EvolucaoTeoricaFactory.createController()
+const evolucaoTeoricaRoutes = createEvolucaoTeoricaRoutes(
+  evolucaoTeoricaController
+)
+app.use('/api/credit', evolucaoTeoricaRoutes)
 
 app.get('/health', async (req, res) => {
   const healthCheck = {

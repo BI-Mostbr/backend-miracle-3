@@ -20,7 +20,6 @@ export class SimulateCreditUseCase {
     simulation: CreditSimulationWithPropertyType,
     bankName: string
   ): Promise<SimulationResult> {
-    // Validação das regras de negócio básicas
     if (!CreditSimulationDomainService.validateBusinessRules(simulation)) {
       throw new Error('Simulation does not meet business rules')
     }
