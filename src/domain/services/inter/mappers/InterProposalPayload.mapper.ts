@@ -67,7 +67,9 @@ export class InterProposalPayloadMapper {
             proposal.userAddress?.localidade ||
             '',
           estado:
-            proposal.spouse!.uf || proposal.userAddress?.uf || proposal.uf,
+            proposal.spouse!.ufRedisence ||
+            proposal.userAddress?.uf ||
+            proposal.uf,
           numero: parseInt(
             proposal.spouse!.number || proposal.userAddress?.number || '0'
           ),

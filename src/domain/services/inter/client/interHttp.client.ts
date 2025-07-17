@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import { InterSimulationPayload } from '../types/interSimulationPayload.type'
 import { InterProposalPayload } from '../types/InterProposalPayload.type'
+import { InterEvolucaoTeoricaResponse } from '@infra/dtos/EvolucaoTeoricaInter.dto'
 
 export class InterHtppClient {
   private readonly axiosInstance: AxiosInstance
@@ -71,10 +72,10 @@ export class InterHtppClient {
         headers
       })
 
-      console.log('✅ Resposta do Inter:', response.data)
+      console.log('Resposta do Inter:', response.data)
       return response.data
     } catch (error) {
-      console.error('❌ Erro ao enviar proposta para o Inter:', error)
+      console.error('Erro ao enviar proposta para o Inter:', error)
       this.handleError(error)
     }
   }
@@ -96,6 +97,60 @@ export class InterHtppClient {
       return response.data
     } catch (error) {
       throw new Error(`Erro ao obter GET da proposta: ${error}`)
+    }
+  }
+
+  async getEvolucaoTeorica(
+    proposalNumber: string,
+    accessToken: string
+  ): Promise<InterEvolucaoTeoricaResponse> {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    }
+
+    try {
+      const response = await this.axiosInstance.get(
+        `/evolucao-teorica/${proposalNumber}`,
+        {
+          headers
+        }
+      )
+
+      if (!response.data.dataCriacao || !response.data.url) {
+        throw new Error('Resposta inválida: dataCriacao ou url não encontrados')
+      }
+
+      return {
+        dataCriacao: response.data.dataCriacao,
+        url: response.data.url
+      }
+    } catch (error) {
+      console.error('Erro ao obter evolução teórica:', error)
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status
+        const data = error.response?.data
+
+        switch (status) {
+          case 401:
+            throw new Error('Token de acesso inválido ou expirado')
+          case 404:
+            throw new Error(`Proposta ${proposalNumber} não encontrada`)
+          case 400:
+            throw new Error('Parâmetros inválidos fornecidos')
+          case 403:
+            throw new Error('Acesso negado para esta operação')
+          case 500:
+            throw new Error('Erro interno do servidor Inter')
+          default:
+            throw new Error(
+              `Erro HTTP ${status}: ${data?.message || 'Erro desconhecido'}`
+            )
+        }
+      }
+
+      throw new Error(`Erro ao obter evolução da teoria: ${error}`)
     }
   }
 
