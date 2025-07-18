@@ -64,9 +64,33 @@ export const CreditSimulationRequestSchema = z
     }
   )
 
+export const GetInterSimulationRequestSchema = z.object({
+  cpf: z
+    .string()
+    .regex(/^\d{11}$/, 'CPF deve ter 11 dígitos')
+    .transform((cpf) => cpf.replace(/\D/g, ''))
+})
+
 export const BankNameParamSchema = z.object({
   bankName: z
     .string()
     .min(1, 'Nome do banco é obrigatório')
     .transform((name) => name.trim().toLowerCase())
+    .refine(
+      (name) => ['itau', 'santander', 'bradesco', 'inter'].includes(name),
+      {
+        message:
+          'Banco deve ser um dos seguintes: itau, santander, bradesco, inter'
+      }
+    )
+})
+
+export const GetSimulationRequestSchema = z.object({
+  idSimulation: z
+    .string()
+    .min(1, 'ID da simulação é obrigatório')
+    .max(255, 'ID da simulação deve ter no máximo 255 caracteres'),
+
+  includeCreditAnalysis: z.boolean().optional().default(false),
+  includeInstallments: z.boolean().optional().default(false)
 })

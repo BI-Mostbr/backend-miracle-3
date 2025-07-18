@@ -29,6 +29,7 @@ export class CreditSimulationResponseMapper {
       bankResponses.firstInstallment
     )
     return {
+      idSimulacao: bankResponses.simulationId,
       instituicao: bankResponses.bankName,
       credito_solicitado: this.formatCurrency(simulation.financingValue),
       prazo: `${simulation.installments} meses`,
@@ -64,11 +65,13 @@ export class CreditSimulationResponseMapper {
   }
 
   private static formatInterestRate(rate: number, bankName: string): string {
-    switch (bankName.toLocaleLowerCase()) {
+    const normalizedRate = rate < 1 ? rate * 100 : rate
+
+    switch (bankName.toLowerCase()) {
       case 'inter':
-        return `${(rate * 100).toFixed(2)}% + IPCA a.a`
+        return `${normalizedRate.toFixed(2)}% + IPCA a.a`
       default:
-        return `${(rate * 100).toFixed(2)}% a.a`
+        return `${normalizedRate.toFixed(2)}% a.a`
     }
   }
 

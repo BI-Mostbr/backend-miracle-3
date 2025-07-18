@@ -16,30 +16,29 @@ import { ProposalDetailsController } from '@infra/controllers/ProposalDetails.co
 import { ProposalDetailsService } from '@domain/services/ProposalDetails.service'
 import { ProposalDetailsRepository } from '@infra/repositories/ProposalDetails.repository'
 
-const app = express()
+import { ProposalControllerFactory } from '@infra/factories/ProposalController.factory'
+import { createCreditProposalRoutes } from '@infra/routes/CreditProposal.routes'
 
+const app = express()
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? ['https://seudominio.com', 'https://www.seudominio.com']
-        : [
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:5173'
-          ],
+    origin: [
+      'https://api-miracle-hml.mostbr.com', // API homolog
+      'https://hmlmiracle.mostbr.com.br', // Frontend homolog
+      'http://localhost:3000', // Dev local
+      'http://localhost:5173', // Vite dev
+      'http://localhost:3001' // API local
+    ],
     credentials: true
   })
 )
 
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
-
 if (process.env.NODE_ENV !== 'production') {
   app.use(ValidationMiddleware.logRequest())
 }
 setupSwagger(app)
-
 app.get('/', (req, res) => {
   res.json({
     message: 'Credit Simulation API',
@@ -49,7 +48,6 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString()
   })
 })
-
 const creditController = CreditSimulationFactory.createController()
 const creditRoutes = createCreditSimulationRoutes(creditController)
 const prisma = new PrismaClient()
@@ -65,6 +63,10 @@ app.use('/api/credit', creditRoutes)
 app.use('/api/performance', desempenhoRoutes)
 app.use('/api/details', proposalDetailsRoutes)
 
+const proposalController = ProposalControllerFactory.createController()
+const proposalRoutes = createCreditProposalRoutes(proposalController)
+app.use('/api/credit', proposalRoutes)
+
 app.get('/health', async (req, res) => {
   const healthCheck = {
     status: 'OK',
@@ -73,7 +75,6 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     database: 'unknown'
   }
-
   try {
     const prisma = RepositoryFactory.getPrismaClient()
     await prisma.$queryRaw`SELECT 1`
@@ -82,11 +83,9 @@ app.get('/health', async (req, res) => {
     healthCheck.database = 'disconnected'
     healthCheck.status = 'DEGRADED'
   }
-
   const statusCode = healthCheck.status === 'OK' ? 200 : 503
   res.status(statusCode).json(healthCheck)
 })
-
 // 404 - Rota não encontrada
 app.use((req, res) => {
   res.status(404).json({
@@ -97,10 +96,8 @@ app.use((req, res) => {
   })
 })
 app.use(ValidationMiddleware.errorHandler())
-
 const gracefulShutdown = async (signal: string) => {
   console.log(`Graceful shutdown iniciado por ${signal}...`)
-
   try {
     await RepositoryFactory.disconnect()
     console.log('Conexões com banco fechadas')
@@ -110,12 +107,9 @@ const gracefulShutdown = async (signal: string) => {
     process.exit(1)
   }
 }
-
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
 process.on('SIGINT', () => gracefulShutdown('SIGINT'))
-
 const PORT = process.env.PORT || 3000
-
 app.listen(PORT, () => {
   console.log('Credit Simulation API')
   console.log('================================')
@@ -125,5 +119,4 @@ app.listen(PORT, () => {
   console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`)
   console.log(`Iniciado: ${new Date().toISOString()}`)
 })
-
 export { app }

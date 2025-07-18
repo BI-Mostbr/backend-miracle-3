@@ -6,20 +6,19 @@ export class ItauResponseMapper {
     simulation: CreditSimulation
   ): BankResponseSimulation {
     return {
-      simulationId: itauResponse.id,
+      simulationId: itauResponse.data[0].simulationId,
       bankName: 'Itaú',
-      financingValue: itauResponse.financingValue || 0,
-      installments: itauResponse.installments || 0,
-      firstInstallment: itauResponse.firstInstallment || 0,
-      lastInstallment: itauResponse.lastInstallment || 0,
-      interestRate: itauResponse.interestRate || 0,
-      cet: itauResponse.cet || 0,
+      financingValue: simulation.financingValue || 0,
+      installments: itauResponse.data[0].installments || 0,
+      firstInstallment: itauResponse.data[0].firstInstallment.totalValue || 0,
+      lastInstallment: itauResponse.data[0].lastInstallment.totalValue || 0,
+      interestRate: itauResponse.data[0].annualRate || 0,
+      cet: itauResponse.data[0].cetAnnual || 0,
       propertyValue: simulation.propertyValue,
       downPayment: simulation.propertyValue - simulation.financingValue,
       amortizationType: simulation.amortizationType || 'SAC',
       ltv: (simulation.financingValue / simulation.propertyValue) * 100,
-      uuidUser: itauResponse.uuid_user,
-      userId: simulation.userId.toString()
+      uuidUser: itauResponse.uuid_user
     }
   }
 }

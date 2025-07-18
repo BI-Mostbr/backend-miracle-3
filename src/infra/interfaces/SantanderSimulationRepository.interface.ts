@@ -4,7 +4,6 @@ import { ISantanderSimulationData } from './SantanderSimulationData.interface'
 export interface ISantanderSimulationRepository {
   save(
     simulation: CreditSimulation,
-    bankResponse: BankResponseSimulation,
-    userId?: string
+    bankResponse: BankResponseSimulation
   ): Promise<ISantanderSimulationData>
 }

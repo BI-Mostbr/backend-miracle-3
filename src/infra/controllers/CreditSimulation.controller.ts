@@ -1,4 +1,14 @@
-import { SimulateCreditUseCase } from '@application/use-cases/SimulateCreditUseCases'
+import {
+  SimulateCreditUseCase,
+  SimulationResult
+} from '@application/use-cases/SimulateCreditUseCases'
+import { CreditSimulationWithPropertyType } from '@domain/services/BankParameterNormalizer'
+import {
+  ApiResponse,
+  GetInterSimulationRequest,
+  GetItauSimulationRequest,
+  GetSantanderSimulationRequest
+} from '@infra/dtos/GetSimulation.dto'
 import { CreditSimulationResponseMapper } from '@infra/mappers/CreditSimulation.mapper'
 import { Request, Response } from 'express'
 
@@ -94,7 +104,8 @@ export class CreditSimulationController {
     try {
       const bankName = req.params.bankName?.toLowerCase()
       const simulationData = req.body
-      const simulation = {
+
+      const simulation: CreditSimulationWithPropertyType = {
         customerBirthDate: simulationData.customerBirthDate,
         customerName: simulationData.customerName,
         customerCpf: simulationData.customerCpf,
@@ -108,22 +119,173 @@ export class CreditSimulationController {
         userId: simulationData.userId
       }
 
-      const bankResponse = await this.useCase.simulateWithBank(
+      const result: SimulationResult = await this.useCase.simulateWithBank(
         simulation,
         bankName
       )
+
+      // Converte para o formato esperado pelo frontend
       const frontendResponse =
-        CreditSimulationResponseMapper.convertToFrontendResponse(simulation, [
-          bankResponse
-        ])
-      res.json(frontendResponse)
+        CreditSimulationResponseMapper.convertToFrontendResponse(
+          result.normalizationResult.normalizedSimulation,
+          [result.bankResponse]
+        )
+
+      const responseWithAdjustments = {
+        simulacao: {
+          ...frontendResponse.simulacao,
+          ofertas: frontendResponse.simulacao.ofertas.map((oferta) => ({
+            ...oferta,
+            // Adiciona os ajustes logo após as tags
+            adjustments: {
+              hadAdjustments: result.hadAdjustments,
+              adjustmentsMade: result.normalizationResult.adjustments
+            }
+          }))
+        }
+      }
+
+      res.json(responseWithAdjustments)
     } catch (error) {
       console.error('Error in credit simulation:', error)
-
       res.status(500).json({
         error: 'Erro interno do servidor',
         message: error instanceof Error ? error.message : 'Erro desconhecido'
       })
+    }
+  }
+
+  async simulateWithAllBanks(req: Request, res: Response): Promise<void> {
+    try {
+      const simulationData = req.body
+
+      const simulation: CreditSimulationWithPropertyType = {
+        customerBirthDate: simulationData.customerBirthDate,
+        customerName: simulationData.customerName,
+        customerCpf: simulationData.customerCpf,
+        propertyValue: simulationData.propertyValue,
+        financingValue: simulationData.financingValue,
+        installments: simulationData.installments,
+        productType: simulationData.productType,
+        propertyType: simulationData.propertyType,
+        financingRate: simulationData.financingRate,
+        amortizationType: simulationData.amortizationType,
+        userId: simulationData.userId
+      }
+
+      const results = await this.useCase.simulateWithAllBanks(simulation)
+
+      const responseData = {
+        simulacao: {
+          cpf: simulation.customerCpf,
+          nome: simulation.customerName,
+          ofertas: Object.entries(results).map(([bankName, result]) => {
+            const oferta =
+              CreditSimulationResponseMapper.convertToFrontendResponse(
+                result.normalizationResult.normalizedSimulation,
+                [result.bankResponse]
+              ).simulacao.ofertas[0]
+
+            return {
+              ...oferta,
+              banco: bankName,
+              adjustments: {
+                hadAdjustments: result.hadAdjustments,
+                adjustmentsMade: result.normalizationResult.adjustments
+              }
+            }
+          })
+        }
+      }
+
+      res.json(responseData)
+    } catch (error) {
+      console.error('Error in all banks simulation:', error)
+      res.status(500).json({
+        error: 'Erro interno do servidor',
+        message: error instanceof Error ? error.message : 'Erro desconhecido'
+      })
+    }
+  }
+
+  async getSimulationFromBank(req: Request, res: Response): Promise<void> {
+    try {
+      const { bankName } = req.params
+      const requestBody = req.body
+      let request: any
+
+      switch (bankName.toLowerCase()) {
+        case 'itau':
+          request = {
+            idSimulation: requestBody.idSimulation,
+            includeCreditAnalysis: requestBody.includeCreditAnalysis,
+            includeInstallments: requestBody.includeInstallments
+          } as GetItauSimulationRequest
+          break
+
+        case 'santander':
+          request = {
+            idSimulation: requestBody.idSimulation
+          } as GetSantanderSimulationRequest
+          break
+        case 'inter':
+          request = {
+            cpf: requestBody.cpf
+          } as GetInterSimulationRequest
+          break
+
+        default:
+          res.status(400).json({
+            success: false,
+            error: 'Banco não suportado',
+            supportedBanks: ['itau', 'santander', 'inter']
+          })
+          return
+      }
+
+      const simulationData = await this.useCase.getSimulationFromBank(
+        bankName.toLowerCase(),
+        request
+      )
+
+      const response: ApiResponse<any> = {
+        success: true,
+        data: simulationData,
+        timestamp: new Date().toISOString()
+      }
+
+      res.json(response)
+    } catch (error) {
+      console.error(
+        `Error getting simulation from ${req.params.bankName}:`,
+        error
+      )
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erro desconhecido'
+
+      if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+        res.status(404).json({
+          success: false,
+          error: 'Simulação não encontrada',
+          message: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+      } else if (errorMessage.includes('Bank service')) {
+        res.status(400).json({
+          success: false,
+          error: 'Banco não suportado',
+          message: errorMessage,
+          supportedBanks: ['itau', 'santander', 'inter']
+        })
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Erro interno do servidor',
+          message: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+      }
     }
   }
 }

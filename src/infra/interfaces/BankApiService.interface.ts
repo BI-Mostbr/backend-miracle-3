@@ -5,4 +5,5 @@ export interface IBankApiService {
     simulation: CreditSimulation
   ): Promise<BankResponseSimulation>
   getBankName(): string
+  getSimulation(request: any): Promise<any>
 }
